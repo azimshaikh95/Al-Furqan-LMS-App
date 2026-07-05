@@ -1,0 +1,219 @@
+name: Build and Sign Al-Furqan
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      moodle_version:
+        description: 'Moodle App Version (tag/branch)'
+        required: true
+        default: 'v4.3.0'
+      app_name:
+        description: 'Output App Name'
+        required: true
+        default: 'Al-Furqan'
+
+jobs:
+  build-android:
+    name: Build Signed Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Configuration Repo
+        uses: actions/checkout@v4
+
+      - name: Checkout Official Moodle Mobile App
+        uses: actions/checkout@v4
+        with:
+          repository: 'moodlehq/moodleapp'
+          ref: '${{ github.event.inputs.moodle_version || '''v4.3.0''' }}'
+          path: 'moodleapp-source'
+
+      - name: Set up Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'moodleapp-source/package-lock.json'
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Decode Android Keystore File
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/release.keystore
+          echo "Keystore decoded successfully."
+
+      - name: Inject Custom Brand Configuration (config.json)
+        run: |
+          cat << 'EOF' > moodleapp-source/config.json
+{
+  "siteurl": "https://learn.zaytunweb.online/",
+  "appname": "Al-Furqan",
+  "app_id": "com.iim.lms",
+  "version": "4.3.0",
+  "customscheme": "iimlms",
+  "disabledfeatures": [
+    "chat"
+  ],
+  "push_providers": [
+    "fcm"
+  ],
+  "fcm_sender_id": "766562172755",
+  "airnotifier_url": "",
+  "airnotifier_appid": "",
+  "ios_bundle_id": "com.iim.lms",
+  "android_package_name": "com.iim.lms",
+  "branding_options": {
+    "logo_text": "REGENT",
+    "logo_preset": 1,
+    "primary_color": "#800020",
+    "accent_color": "#d4af37",
+    "header_bg": "#5c061a"
+  }
+}
+EOF
+
+      - name: Inject Custom Brand Theme Variables (variables.scss)
+        run: |
+          cat << 'EOF' > moodleapp-source/src/theme/variables.scss
+/**
+ * Custom Ionic Theme variables for Al-Furqan
+ * Drop this file directly into /src/theme/variables.scss of your moodleapp repository.
+ */
+
+:root {
+  --ion-color-primary: #800020;
+  --ion-color-primary-rgb: 128,0,32;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255,255,255;
+  --ion-color-primary-shade: #5a00;
+  --ion-color-primary-tint: #a62646;
+
+  --ion-color-secondary: #fdfbeb;
+  --ion-color-secondary-rgb: 253,251,235;
+  --ion-color-secondary-contrast: #2d1515;
+
+  --ion-color-accent: #d4af37;
+  --ion-color-accent-rgb: 212,175,55;
+
+  --ion-background-color: #fcfcf9;
+  --ion-background-color-rgb: 252,252,249;
+
+  --ion-text-color: #2d1515;
+  --ion-text-color-rgb: 45,21,21;
+
+  --app-header-bg: #5c061a;
+  --app-header-text: #ffffff;
+}
+
+body.dark {
+  --ion-color-primary: #9e1b32;
+  --ion-color-primary-rgb: 158,27,50;
+  --ion-color-primary-contrast: #fffdf5;
+
+  --ion-color-secondary: #3d0a11;
+  --ion-color-secondary-contrast: #fdf5f5;
+
+  --ion-background-color: #0f0507;
+  --ion-text-color: #fdf5f5;
+
+  --app-header-bg: #210005;
+  --app-header-text: #fffdf5;
+}
+EOF
+
+      - name: Disable engine strict configuration
+        run: |
+          if [ -f "moodleapp-source/.npmrc" ]; then
+            rm -f moodleapp-source/.npmrc
+            echo "Removed .npmrc to bypass strict engine check"
+          fi
+
+      - name: Install Moodle App Dependencies
+        working-directory: moodleapp-source
+        run: npm ci --legacy-peer-deps --ignore-engines
+
+      - name: Compile Production Web Assets
+        working-directory: moodleapp-source
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+        run: npm run build
+
+      - name: Integrate Native Android Platform
+        working-directory: moodleapp-source
+        run: npx cap sync android
+
+      - name: Build Android Signed Release APK
+        env:
+          SIGNING_STORE_FILE: "release.keystore"
+          SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GRADLE_USER_HOME: "${{ github.workspace }}/.gradle_home"
+        run: |
+          cd moodleapp-source/android
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/$SIGNING_STORE_FILE \
+            -Pandroid.injected.signing.store.password=$SIGNING_STORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$SIGNING_KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$SIGNING_KEY_PASSWORD \
+            --no-daemon
+
+      - name: Upload Signed APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: '${{ github.event.inputs.app_name || '''Al-Furqan''' }}-Signed-APK'
+          path: moodleapp-source/android/app/build/outputs/apk/release/*-release.apk
+
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Google API Dependencies
+        run: pip install google-api-python-client google-auth
+
+      - name: Overwrite APK on Google Drive
+        env:
+          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+          DRIVE_FILE_ID: "1vcG3GDzzbRx7xdSjTnfh6omb5RFDq4sC"
+        run: |
+          python - << 'EOF'
+          import os
+          import json
+          import glob
+          from google.oauth2.service_account import Credentials
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
+
+          creds_data = json.loads(os.environ['GDRIVE_CREDENTIALS'])
+          credentials = Credentials.from_service_account_info(creds_data)
+          drive_service = build('drive', 'v3', credentials=credentials)
+
+          file_id = os.environ['DRIVE_FILE_ID']
+          
+          # Target only the signed release file, skipping any unsigned wrappers
+          search_path = 'moodleapp-source/android/app/build/outputs/apk/release/*.apk'
+          found_apks = [f for f in glob.glob(search_path) if "unsigned" not in f]
+
+          if not found_apks:
+              raise FileNotFoundError("Could not find any signed generated APK file in the release folder!")
+
+          apk_path = found_apks[0]
+          print(f"Successfully located compiled target: {apk_path}")
+          print(f"Uploading update to replace existing file ID: {file_id}...")
+          
+          media = MediaFileUpload(apk_path, mimetype='application/vnd.android.package-archive', resumable=True)
+          
+          updated_file = drive_service.files().update(
+              fileId=file_id,
+              media_body=media
+          ).execute()
+          
+          print("Success! Google Drive file updated cleanly.")
+          EOF
