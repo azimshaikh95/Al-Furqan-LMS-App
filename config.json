@@ -1,0 +1,25 @@
+{
+  "siteurl": "https://learn.zaytunweb.online/",
+  "appname": "Al-Furqan",
+  "app_id": "com.iim.lms",
+  "version": "4.3.0",
+  "customscheme": "iimlms",
+  "disabledfeatures": [
+    "chat"
+  ],
+  "push_providers": [
+    "fcm"
+  ],
+  "fcm_sender_id": "766562172755",
+  "airnotifier_url": "",
+  "airnotifier_appid": "",
+  "ios_bundle_id": "com.iim.lms",
+  "android_package_name": "com.iim.lms",
+  "branding_options": {
+    "logo_text": "REGENT",
+    "logo_preset": 1,
+    "primary_color": "#800020",
+    "accent_color": "#d4af37",
+    "header_bg": "#5c061a"
+  }
+}

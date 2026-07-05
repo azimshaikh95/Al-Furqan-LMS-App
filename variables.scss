@@ -1,0 +1,44 @@
+/**
+ * Custom Ionic Theme variables for Al-Furqan
+ * Drop this file directly into /src/theme/variables.scss of your moodleapp repository.
+ */
+
+:root {
+  --ion-color-primary: #800020;
+  --ion-color-primary-rgb: 128,0,32;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255,255,255;
+  --ion-color-primary-shade: #5a00;
+  --ion-color-primary-tint: #a62646;
+
+  --ion-color-secondary: #fdfbeb;
+  --ion-color-secondary-rgb: 253,251,235;
+  --ion-color-secondary-contrast: #2d1515;
+
+  --ion-color-accent: #d4af37;
+  --ion-color-accent-rgb: 212,175,55;
+
+  --ion-background-color: #fcfcf9;
+  --ion-background-color-rgb: 252,252,249;
+
+  --ion-text-color: #2d1515;
+  --ion-text-color-rgb: 45,21,21;
+
+  --app-header-bg: #5c061a;
+  --app-header-text: #ffffff;
+}
+
+body.dark {
+  --ion-color-primary: #9e1b32;
+  --ion-color-primary-rgb: 158,27,50;
+  --ion-color-primary-contrast: #fffdf5;
+
+  --ion-color-secondary: #3d0a11;
+  --ion-color-secondary-contrast: #fdf5f5;
+
+  --ion-background-color: #0f0507;
+  --ion-text-color: #fdf5f5;
+
+  --app-header-bg: #210005;
+  --app-header-text: #fffdf5;
+}
