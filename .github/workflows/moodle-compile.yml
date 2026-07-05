@@ -1,4 +1,4 @@
-name: Build and Sign Al-Furqan
+name: Build and Sign Zaytun
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
       app_name:
         description: 'Output App Name'
         required: true
-        default: 'Al-Furqan'
+        default: 'Zaytun'
 
 jobs:
   build-android:
@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 'moodlehq/moodleapp'
-          ref: "${{ github.event.inputs.moodle_version || 'v4.3.0' }}"
+          ref: '${{ github.event.inputs.moodle_version || 'v4.3.0' }}'
           path: 'moodleapp-source'
 
       - name: Set up Node.js Environment
@@ -52,24 +52,27 @@ jobs:
           cat << 'EOF' > moodleapp-source/config.json
           {
             "siteurl": "https://learn.zaytunweb.online/",
-            "appname": "Al-Furqan",
-            "app_id": "com.iim.lms",
+            "appname": "Zaytun",
+            "app_id": "com.iim.moodle",
             "version": "4.3.0",
-            "customscheme": "iimlms",
+            "customscheme": "iimzaytun",
             "disabledfeatures": [
+              "grades",
+              "files",
+              "calendar",
               "chat"
             ],
             "push_providers": [
-              "fcm"
+              "airnotifier"
             ],
-            "fcm_sender_id": "766562172755",
-            "airnotifier_url": "",
-            "airnotifier_appid": "",
-            "ios_bundle_id": "com.iim.lms",
-            "android_package_name": "com.iim.lms",
+            "fcm_sender_id": "",
+            "airnotifier_url": "https://messages.moodle.net/api/v2",
+            "airnotifier_appid": "com.moodle.academy.push",
+            "ios_bundle_id": "com.iim.moodle",
+            "android_package_name": "com.iim.moodle",
             "branding_options": {
               "logo_text": "REGENT",
-              "logo_preset": 1,
+              "logo_preset": 3,
               "primary_color": "#800020",
               "accent_color": "#d4af37",
               "header_bg": "#5c061a"
@@ -81,7 +84,7 @@ jobs:
         run: |
           cat << 'EOF' > moodleapp-source/src/theme/variables.scss
           /**
-           * Custom Ionic Theme variables for Al-Furqan
+           * Custom Ionic Theme variables for Zaytun
            * Drop this file directly into /src/theme/variables.scss of your moodleapp repository.
            */
 
@@ -145,7 +148,7 @@ jobs:
 
       - name: Integrate Native Android Platform
         working-directory: moodleapp-source
-        run: npx capacitor sync android
+        run: ./node_modules/.bin/cap sync android
 
       - name: Build Android Signed Release APK
         env:
@@ -167,7 +170,7 @@ jobs:
       - name: Upload Signed APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: "${{ github.event.inputs.app_name || 'Al-Furqan' }}-Signed-APK"
+          name: '${{ github.event.inputs.app_name || 'Zaytun' }}-Signed-APK'
           path: moodleapp-source/android/app/build/outputs/apk/release/*-release.apk
 
       - name: Set up Python Environment
