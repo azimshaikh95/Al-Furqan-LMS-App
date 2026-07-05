@@ -60,19 +60,19 @@ jobs:
               "chat"
             ],
             "push_providers": [
-              "airnotifier"
+              "fcm"
             ],
-            "fcm_sender_id": "",
-            "airnotifier_url": "https://messages.moodle.net/api/v2",
-            "airnotifier_appid": "com.moodle.academy.push",
+            "fcm_sender_id": "766562172755",
+            "airnotifier_url": "",
+            "airnotifier_appid": "",
             "ios_bundle_id": "com.iim.lms",
             "android_package_name": "com.iim.lms",
             "branding_options": {
-              "logo_text": "ACADEMY",
-              "logo_preset": 0,
-              "primary_color": "#ff7f00",
-              "accent_color": "#0f6cb5",
-              "header_bg": "#0f6cb5"
+              "logo_text": "REGENT",
+              "logo_preset": 1,
+              "primary_color": "#800020",
+              "accent_color": "#d4af37",
+              "header_bg": "#5c061a"
             }
           }
           EOF
@@ -84,45 +84,45 @@ jobs:
            * Custom Ionic Theme variables for Al-Furqan
            * Drop this file directly into /src/theme/variables.scss of your moodleapp repository.
            */
-          
+
           :root {
-            --ion-color-primary: #ff7f00;
-            --ion-color-primary-rgb: 255,127,0;
+            --ion-color-primary: #800020;
+            --ion-color-primary-rgb: 128,0,32;
             --ion-color-primary-contrast: #ffffff;
             --ion-color-primary-contrast-rgb: 255,255,255;
-            --ion-color-primary-shade: #d9590;
-            --ion-color-primary-tint: #ffa526;
-          
-            --ion-color-secondary: #f1f5f9;
-            --ion-color-secondary-rgb: 241,245,249;
-            --ion-color-secondary-contrast: #1e293b;
-          
-            --ion-color-accent: #0f6cb5;
-            --ion-color-accent-rgb: 15,108,181;
-          
-            --ion-background-color: #f8fafc;
-            --ion-background-color-rgb: 248,250,252;
-          
-            --ion-text-color: #1e293b;
-            --ion-text-color-rgb: 30,41,59;
-          
-            --app-header-bg: #0f6cb5;
+            --ion-color-primary-shade: #5a00;
+            --ion-color-primary-tint: #a62646;
+
+            --ion-color-secondary: #fdfbeb;
+            --ion-color-secondary-rgb: 253,251,235;
+            --ion-color-secondary-contrast: #2d1515;
+
+            --ion-color-accent: #d4af37;
+            --ion-color-accent-rgb: 212,175,55;
+
+            --ion-background-color: #fcfcf9;
+            --ion-background-color-rgb: 252,252,249;
+
+            --ion-text-color: #2d1515;
+            --ion-text-color-rgb: 45,21,21;
+
+            --app-header-bg: #5c061a;
             --app-header-text: #ffffff;
           }
-          
+
           body.dark {
-            --ion-color-primary: #ff9c33;
-            --ion-color-primary-rgb: 255,156,51;
-            --ion-color-primary-contrast: #f8fafc;
-          
-            --ion-color-secondary: #1e293b;
-            --ion-color-secondary-contrast: #f1f5f9;
-          
-            --ion-background-color: #090d16;
-            --ion-text-color: #f1f5f9;
-          
-            --app-header-bg: #0f172a;
-            --app-header-text: #f8fafc;
+            --ion-color-primary: #9e1b32;
+            --ion-color-primary-rgb: 158,27,50;
+            --ion-color-primary-contrast: #fffdf5;
+
+            --ion-color-secondary: #3d0a11;
+            --ion-color-secondary-contrast: #fdf5f5;
+
+            --ion-background-color: #0f0507;
+            --ion-text-color: #fdf5f5;
+
+            --app-header-bg: #210005;
+            --app-header-text: #fffdf5;
           }
           EOF
 
@@ -145,7 +145,7 @@ jobs:
 
       - name: Integrate Native Android Platform
         working-directory: moodleapp-source
-        run: npx cap sync android
+        run: npx capacitor sync android
 
       - name: Build Android Signed Release APK
         env:
