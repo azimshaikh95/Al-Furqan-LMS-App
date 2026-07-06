@@ -150,8 +150,11 @@ jobs:
       - name: Integrate Native Android Platform
         working-directory: moodleapp-source
         run: |
-          # Executes Moodle's production configuration step for Android platforms
-          npm run prod:android
+          # Build core internal plugin files explicitly
+          npm run prod --prefix cordova-plugin-moodleapp
+          
+          # Initialize Cordova platform for headlessly compiling
+          npx cordova platform add android --no-telemetry || true
 
       - name: Build Android Signed Release APK
         env:
@@ -160,8 +163,15 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           GRADLE_USER_HOME: "${{ github.workspace }}/.gradle_home"
+          NODE_ENV: production
         run: |
-          cd moodleapp-source/android
+          cd moodleapp-source
+          
+          # Use ionic cordova build with the --prod asset optimization flag
+          npx ionic cordova build android --prod --no-interactive
+          
+          # Perform signing logic inside native compiler folder context
+          cd android || cd platforms/android
           chmod +x gradlew
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/$SIGNING_STORE_FILE \
@@ -174,7 +184,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: "${{ github.event.inputs.app_name || 'Zaytun' }}-Signed-APK"
-          path: moodleapp-source/android/app/build/outputs/apk/release/*-release.apk
+          path: moodleapp-source/platforms/android/app/build/outputs/apk/release/*-release.apk
 
       - name: Set up Python Environment
         uses: actions/setup-python@v5
@@ -204,7 +214,7 @@ jobs:
 
           file_id = os.environ['DRIVE_FILE_ID']
           
-          search_path = 'moodleapp-source/android/app/build/outputs/apk/release/*.apk'
+          search_path = 'moodleapp-source/platforms/android/app/build/outputs/apk/release/*.apk'
           found_apks = [f for f in glob.glob(search_path) if "unsigned" not in f]
 
           if not found_apks:
