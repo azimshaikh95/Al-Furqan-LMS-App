@@ -67,14 +67,14 @@ jobs:
         working-directory: moodleapp-source
         run: npm ci --legacy-peer-deps --ignore-engines
 
-      - name: Inject Custom Brand Assets & Configs
+      - name: Pre-Inject Brand Specifications Before Web Compilation
         run: |
-          # 1. Create target directories if they don't exist
+          # Create baseline framework directories
           mkdir -p moodleapp-source/src/assets
           mkdir -p moodleapp-source/src/theme
           mkdir -p moodleapp-source/resources/android
 
-          # 2. Inject config.json
+          # Write your production branding config
           cat << 'EOF' > moodleapp-source/config.json
           {
             "siteurl": "https://learn.zaytunweb.online/",
@@ -105,19 +105,18 @@ jobs:
             }
           }
           EOF
+          
+          # Force copy into active source trees
           cp moodleapp-source/config.json moodleapp-source/src/assets/config.json
 
-          # 3. Inject variables.scss
+          # Write custom style tokens
           cat << 'EOF' > moodleapp-source/src/theme/variables.scss
-          /**
-           * Custom Ionic Theme variables for Zaytun
-           */
           :root {
             --ion-color-primary: #800020;
             --ion-color-primary-rgb: 128,0,32;
             --ion-color-primary-contrast: #ffffff;
             --ion-color-primary-contrast-rgb: 255,255,255;
-            --ion-color-primary-shade: #5a00;
+            --ion-color-primary-shade: #5a0020;
             --ion-color-primary-tint: #a62646;
 
             --ion-color-secondary: #fdfbeb;
@@ -131,7 +130,7 @@ jobs:
             --ion-background-color-rgb: 252,252,249;
 
             --ion-text-color: #2d1515;
-            --ion-text-color-rgb: 45,21,21;
+            --ion-text-rgb: 45,21,21;
 
             --app-header-bg: #5c061a;
             --app-header-text: #ffffff;
@@ -150,18 +149,6 @@ jobs:
           }
           EOF
 
-          # 4. Copy Icon and Splash image files from your root repository to Cordova resource path if present
-          if [ -f "icon.png" ]; then
-            cp icon.png moodleapp-source/resources/android/icon.png
-            cp icon.png moodleapp-source/icon.png
-            echo "Custom icon found and staged."
-          fi
-          if [ -f "splash.png" ]; then
-            cp splash.png moodleapp-source/resources/android/splash.png
-            cp splash.png moodleapp-source/splash.png
-            echo "Custom splash found and staged."
-          fi
-
       - name: Compile Production Web Assets
         working-directory: moodleapp-source
         env:
@@ -175,10 +162,36 @@ jobs:
         run: |
           npm run prod --prefix cordova-plugin-moodleapp
           npx cordova platform add android --no-telemetry || true
+
+      - name: Force Overwrite Compiled Native Assets & Graphics
+        run: |
+          # Force configs into compiled production www outputs
+          cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
+          cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
           
-          # Force copy production asset bundle directly into the Cordova build distribution folder
-          cp config.json www/assets/config.json
-          cp -R src/assets/* www/assets/ || true
+          # HARD INJECTION: Copy brand assets directly into the compiled native Android res resource maps
+          # This completely overwrites the fallback generic Cordova logo imagery buckets
+          if [ -f "icon.png" ]; then
+            echo "Injecting custom App Icons..."
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xdpi/ic_launcher.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
+          fi
+
+          if [ -f "splash.png" ]; then
+            echo "Injecting custom Splash Screens..."
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-mdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-hdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-xhdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-xxhdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-mdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-hdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-xhdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-xxhdpi/screen.png || true
+          fi
 
       - name: Build Android Signed Release APK
         env:
@@ -192,13 +205,9 @@ jobs:
         run: |
           cd moodleapp-source
           
-          # Force Cordova to regenerate the icon and launch graphics from resources folder
-          npx cordova prepare android --no-telemetry
-          
-          # Compile the application bundle
+          # Finalize and compile package bundle headlessly
           npx ionic cordova build android --prod --no-interactive
           
-          # Run keystore signer execution
           cd platforms/android
           chmod +x gradlew
           ./gradlew assembleRelease \
