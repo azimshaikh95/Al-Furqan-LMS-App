@@ -150,6 +150,13 @@ jobs:
       - name: Integrate Native Android Platform
         working-directory: moodleapp-source
         run: |
+          cat << 'EXPF' > capacitor.config.json
+          {
+            "appId": "com.iim.moodle",
+            "appName": "Zaytun",
+            "webDir": "www"
+          }
+          EXPF
           npx @capacitor/cli add android || true
           npx @capacitor/cli sync android
 
