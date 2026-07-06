@@ -150,10 +150,8 @@ jobs:
       - name: Integrate Native Android Platform
         working-directory: moodleapp-source
         run: |
-          # Use npm to run Moodle's internally packaged build tooling scripts 
-          # which seamlessly handle local configuration injections
-          npm run setup:android || npx cap add android || true
-          npx cap copy android
+          # Executes Moodle's production configuration step for Android platforms
+          npm run prod:android
 
       - name: Build Android Signed Release APK
         env:
