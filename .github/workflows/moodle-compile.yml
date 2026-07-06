@@ -65,16 +65,14 @@ jobs:
 
       - name: Install Moodle App Dependencies
         working-directory: moodleapp-source
-        run: npm ci --legacy-peer-deps --ignore-engines
-
-      - name: Pre-Inject Brand Specifications Before Web Compilation
         run: |
-          # Create baseline framework directories
-          mkdir -p moodleapp-source/src/assets
-          mkdir -p moodleapp-source/src/theme
-          mkdir -p moodleapp-source/resources/android
+          npm ci --legacy-peer-deps --ignore-engines
+          # Install global gulp locally within the source context to process styles cleanly
+          npm install gulp-cli --save-dev --legacy-peer-deps
 
-          # Write your production branding config
+      - name: Inject Custom Brand Specifications
+        run: |
+          # 1. Inject config.json safely into baseline framework trees
           cat << 'EOF' > moodleapp-source/config.json
           {
             "siteurl": "https://learn.zaytunweb.online/",
@@ -106,10 +104,11 @@ jobs:
           }
           EOF
           
-          # Force copy into active source trees
+          mkdir -p moodleapp-source/src/assets
           cp moodleapp-source/config.json moodleapp-source/src/assets/config.json
 
-          # Write custom style tokens
+          # 2. Inject variables.scss custom style overrides
+          mkdir -p moodleapp-source/src/theme
           cat << 'EOF' > moodleapp-source/src/theme/variables.scss
           :root {
             --ion-color-primary: #800020;
@@ -130,7 +129,7 @@ jobs:
             --ion-background-color-rgb: 252,252,249;
 
             --ion-text-color: #2d1515;
-            --ion-text-rgb: 45,21,21;
+            --ion-text-color-rgb: 45,21,21;
 
             --app-header-bg: #5c061a;
             --app-header-text: #ffffff;
@@ -149,6 +148,18 @@ jobs:
           }
           EOF
 
+          # 3. CRITICAL MANDATE FOR CORDOVA: Update the target identifier inside config.xml
+          # Overwrites the default generic id/name properties so Cordova honors asset bindings
+          if [ -f "moodleapp-source/config.xml" ]; then
+            echo "Updating master config.xml parameters..."
+            sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.moodle"/g' moodleapp-source/config.xml
+            sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
+          fi
+
+          # 4. Trigger Moodle's baseline build orchestration task tool chains explicitly
+          cd moodleapp-source
+          npx gulp
+
       - name: Compile Production Web Assets
         working-directory: moodleapp-source
         env:
@@ -165,12 +176,11 @@ jobs:
 
       - name: Force Overwrite Compiled Native Assets & Graphics
         run: |
-          # Force configs into compiled production www outputs
+          # Double inject asset variables safely down inside web distributions
           cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
           cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
           
-          # HARD INJECTION: Copy brand assets directly into the compiled native Android res resource maps
-          # This completely overwrites the fallback generic Cordova logo imagery buckets
+          # Inject image layouts directly into Cordova distribution buckets
           if [ -f "icon.png" ]; then
             echo "Injecting custom App Icons..."
             cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher.png || true
