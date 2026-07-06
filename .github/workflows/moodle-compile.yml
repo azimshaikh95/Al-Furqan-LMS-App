@@ -157,8 +157,8 @@ jobs:
             "webDir": "www"
           }
           EXPF
-          npx @capacitor/cli add android || true
-          npx @capacitor/cli sync android
+          ./node_modules/.bin/cap add android || true
+          ./node_modules/.bin/cap sync android
 
       - name: Build Android Signed Release APK
         env:
