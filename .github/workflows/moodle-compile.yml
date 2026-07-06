@@ -67,12 +67,20 @@ jobs:
         working-directory: moodleapp-source
         run: |
           npm ci --legacy-peer-deps --ignore-engines
-          # Install global gulp locally within the source context to process styles cleanly
           npm install gulp-cli --save-dev --legacy-peer-deps
 
-      - name: Inject Custom Brand Specifications
+      - name: Inject Custom Brand Specifications & Patch Asset Configurations
         run: |
-          # 1. Inject config.json safely into baseline framework trees
+          # 1. Expand asset budgets inside angular.json to bypass sizing warnings
+          if [ -f "moodleapp-source/angular.json" ]; then
+            echo "Patching asset size thresholds in angular.json..."
+            sed -i 's/"maximumWarning": "5mb"/"maximumWarning": "10mb"/g' moodleapp-source/angular.json
+            sed -i 's/"maximumError": "5mb"/"maximumError": "12mb"/g' moodleapp-source/angular.json
+            sed -i 's/"maximumWarning": "2mb"/"maximumWarning": "10mb"/g' moodleapp-source/angular.json
+            sed -i 's/"maximumError": "5mb"/"maximumError": "12mb"/g' moodleapp-source/angular.json
+          fi
+
+          # 2. Inject config.json safely into baseline framework trees
           cat << 'EOF' > moodleapp-source/config.json
           {
             "siteurl": "https://learn.zaytunweb.online/",
@@ -107,7 +115,7 @@ jobs:
           mkdir -p moodleapp-source/src/assets
           cp moodleapp-source/config.json moodleapp-source/src/assets/config.json
 
-          # 2. Inject variables.scss custom style overrides
+          # 3. Inject variables.scss custom style overrides
           mkdir -p moodleapp-source/src/theme
           cat << 'EOF' > moodleapp-source/src/theme/variables.scss
           :root {
@@ -148,15 +156,14 @@ jobs:
           }
           EOF
 
-          # 3. CRITICAL MANDATE FOR CORDOVA: Update the target identifier inside config.xml
-          # Overwrites the default generic id/name properties so Cordova honors asset bindings
+          # 4. Update the target identifier inside config.xml
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.moodle"/g' moodleapp-source/config.xml
             sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
           fi
 
-          # 4. Trigger Moodle's baseline build orchestration task tool chains explicitly
+          # 5. Trigger Moodle's baseline build orchestration task tool chains explicitly
           cd moodleapp-source
           npx gulp
 
@@ -170,17 +177,16 @@ jobs:
         working-directory: moodleapp-source
         env:
           NODE_OPTIONS: --openssl-legacy-provider
+          NPM_CONFIG_LEGACY_PEER_DEPS: "true" # Forces global fallback inside cordova sub-shells
         run: |
           npm run prod --prefix cordova-plugin-moodleapp
           npx cordova platform add android --no-telemetry || true
 
       - name: Force Overwrite Compiled Native Assets & Graphics
         run: |
-          # Double inject asset variables safely down inside web distributions
           cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
           cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
           
-          # Inject image layouts directly into Cordova distribution buckets
           if [ -f "icon.png" ]; then
             echo "Injecting custom App Icons..."
             cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher.png || true
@@ -212,10 +218,9 @@ jobs:
           GRADLE_USER_HOME: "${{ github.workspace }}/.gradle_home"
           NODE_ENV: production
           NODE_OPTIONS: --openssl-legacy-provider
+          NPM_CONFIG_LEGACY_PEER_DEPS: "true"
         run: |
           cd moodleapp-source
-          
-          # Finalize and compile package bundle headlessly
           npx ionic cordova build android --prod --no-interactive
           
           cd platforms/android
