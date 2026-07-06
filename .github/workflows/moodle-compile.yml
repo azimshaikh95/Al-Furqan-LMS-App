@@ -149,6 +149,8 @@ jobs:
 
       - name: Integrate Native Android Platform
         working-directory: moodleapp-source
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
         run: |
           # Build core internal plugin files explicitly
           npm run prod --prefix cordova-plugin-moodleapp
@@ -164,14 +166,15 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           GRADLE_USER_HOME: "${{ github.workspace }}/.gradle_home"
           NODE_ENV: production
+          NODE_OPTIONS: --openssl-legacy-provider
         run: |
           cd moodleapp-source
           
-          # Use ionic cordova build with the --prod asset optimization flag
+          # Use ionic cordova build with asset optimization flags
           npx ionic cordova build android --prod --no-interactive
           
           # Perform signing logic inside native compiler folder context
-          cd android || cd platforms/android
+          cd platforms/android
           chmod +x gradlew
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/$SIGNING_STORE_FILE \
