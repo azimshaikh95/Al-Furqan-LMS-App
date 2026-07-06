@@ -79,6 +79,7 @@ jobs:
             }
           }
           EOF
+          cp moodleapp-source/config.json moodleapp-source/src/assets/config.json
 
       - name: Inject Custom Brand Theme Variables (variables.scss)
         run: |
@@ -149,8 +150,8 @@ jobs:
       - name: Integrate Native Android Platform
         working-directory: moodleapp-source
         run: |
-          npx --package=@capacitor/cli cap add android || true
-          npx --package=@capacitor/cli cap sync android
+          npx cap add android || true
+          npx cap sync android
 
       - name: Build Android Signed Release APK
         env:
