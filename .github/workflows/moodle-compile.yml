@@ -45,7 +45,11 @@ jobs:
       - name: Set up Compatible Gradle Version
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7' # Forces a version compatible with Cordova/Moodle scripts
+          gradle-version: '8.7'
+
+      - name: Install Exact Android Build Tools Required by Cordova
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;32.0.0"
 
       - name: Decode Android Keystore File
         run: |
@@ -157,10 +161,7 @@ jobs:
         env:
           NODE_OPTIONS: --openssl-legacy-provider
         run: |
-          # Build core internal plugin files explicitly
           npm run prod --prefix cordova-plugin-moodleapp
-          
-          # Initialize Cordova platform for headlessly compiling
           npx cordova platform add android --no-telemetry || true
 
       - name: Build Android Signed Release APK
@@ -174,11 +175,8 @@ jobs:
           NODE_OPTIONS: --openssl-legacy-provider
         run: |
           cd moodleapp-source
-          
-          # Use ionic cordova build with asset optimization flags
           npx ionic cordova build android --prod --no-interactive
           
-          # Perform signing logic inside native compiler folder context
           cd platforms/android
           chmod +x gradlew
           ./gradlew assembleRelease \
