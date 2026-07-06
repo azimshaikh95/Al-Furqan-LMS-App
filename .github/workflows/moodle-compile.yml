@@ -56,8 +56,25 @@ jobs:
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/release.keystore
           echo "Keystore decoded successfully."
 
-      - name: Inject Custom Brand Configuration (config.json)
+      - name: Disable engine strict configuration
         run: |
+          if [ -f "moodleapp-source/.npmrc" ]; then
+            rm -f moodleapp-source/.npmrc
+            echo "Removed .npmrc to bypass strict engine check"
+          fi
+
+      - name: Install Moodle App Dependencies
+        working-directory: moodleapp-source
+        run: npm ci --legacy-peer-deps --ignore-engines
+
+      - name: Inject Custom Brand Assets & Configs
+        run: |
+          # 1. Create target directories if they don't exist
+          mkdir -p moodleapp-source/src/assets
+          mkdir -p moodleapp-source/src/theme
+          mkdir -p moodleapp-source/resources/android
+
+          # 2. Inject config.json
           cat << 'EOF' > moodleapp-source/config.json
           {
             "siteurl": "https://learn.zaytunweb.online/",
@@ -90,14 +107,11 @@ jobs:
           EOF
           cp moodleapp-source/config.json moodleapp-source/src/assets/config.json
 
-      - name: Inject Custom Brand Theme Variables (variables.scss)
-        run: |
+          # 3. Inject variables.scss
           cat << 'EOF' > moodleapp-source/src/theme/variables.scss
           /**
            * Custom Ionic Theme variables for Zaytun
-           * Drop this file directly into /src/theme/variables.scss of your moodleapp repository.
            */
-
           :root {
             --ion-color-primary: #800020;
             --ion-color-primary-rgb: 128,0,32;
@@ -127,28 +141,26 @@ jobs:
             --ion-color-primary: #9e1b32;
             --ion-color-primary-rgb: 158,27,50;
             --ion-color-primary-contrast: #fffdf5;
-
             --ion-color-secondary: #3d0a11;
             --ion-color-secondary-contrast: #fdf5f5;
-
             --ion-background-color: #0f0507;
             --ion-text-color: #fdf5f5;
-
             --app-header-bg: #210005;
             --app-header-text: #fffdf5;
           }
           EOF
 
-      - name: Disable engine strict configuration
-        run: |
-          if [ -f "moodleapp-source/.npmrc" ]; then
-            rm -f moodleapp-source/.npmrc
-            echo "Removed .npmrc to bypass strict engine check"
+          # 4. Copy Icon and Splash image files from your root repository to Cordova resource path if present
+          if [ -f "icon.png" ]; then
+            cp icon.png moodleapp-source/resources/android/icon.png
+            cp icon.png moodleapp-source/icon.png
+            echo "Custom icon found and staged."
           fi
-
-      - name: Install Moodle App Dependencies
-        working-directory: moodleapp-source
-        run: npm ci --legacy-peer-deps --ignore-engines
+          if [ -f "splash.png" ]; then
+            cp splash.png moodleapp-source/resources/android/splash.png
+            cp splash.png moodleapp-source/splash.png
+            echo "Custom splash found and staged."
+          fi
 
       - name: Compile Production Web Assets
         working-directory: moodleapp-source
@@ -163,6 +175,10 @@ jobs:
         run: |
           npm run prod --prefix cordova-plugin-moodleapp
           npx cordova platform add android --no-telemetry || true
+          
+          # Force copy production asset bundle directly into the Cordova build distribution folder
+          cp config.json www/assets/config.json
+          cp -R src/assets/* www/assets/ || true
 
       - name: Build Android Signed Release APK
         env:
@@ -175,8 +191,14 @@ jobs:
           NODE_OPTIONS: --openssl-legacy-provider
         run: |
           cd moodleapp-source
+          
+          # Force Cordova to regenerate the icon and launch graphics from resources folder
+          npx cordova prepare android --no-telemetry
+          
+          # Compile the application bundle
           npx ionic cordova build android --prod --no-interactive
           
+          # Run keystore signer execution
           cd platforms/android
           chmod +x gradlew
           ./gradlew assembleRelease \
@@ -214,10 +236,18 @@ jobs:
           from googleapiclient.discovery import build
           from googleapiclient.http import MediaFileUpload
 
-          creds_data = json.loads(os.environ['GDRIVE_CREDENTIALS'])
+          raw_creds = os.environ.get('GDRIVE_CREDENTIALS', '').strip()
+          if (raw_creds.startswith('"') and raw_creds.endswith('"')) or (raw_creds.startswith("'") and raw_creds.endswith("'")):
+              raw_creds = raw_creds[1:-1].strip()
+
+          try:
+              creds_data = json.loads(raw_creds)
+          except Exception as e:
+              print(f"JSON Parsing Error: Details: {e}")
+              sys.exit(1)
+
           credentials = Credentials.from_service_account_info(creds_data)
           drive_service = build('drive', 'v3', credentials=credentials)
-
           file_id = os.environ['DRIVE_FILE_ID']
           
           search_path = 'moodleapp-source/platforms/android/app/build/outputs/apk/release/*.apk'
@@ -228,15 +258,7 @@ jobs:
               sys.exit(1)
 
           apk_path = found_apks[0]
-          print(f"Successfully located compiled target: {apk_path}")
-          print(f"Uploading update to replace existing file ID: {file_id}...")
-          
           media = MediaFileUpload(apk_path, mimetype='application/vnd.android.package-archive', resumable=True)
-          
-          updated_file = drive_service.files().update(
-              fileId=file_id,
-              media_body=media
-          ).execute()
-          
+          updated_file = drive_service.files().update(fileId=file_id, media_body=media).execute()
           print("Success! Google Drive file updated cleanly.")
           EOF
