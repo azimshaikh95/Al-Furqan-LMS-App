@@ -148,7 +148,9 @@ jobs:
 
       - name: Integrate Native Android Platform
         working-directory: moodleapp-source
-        run: npx --package=@capacitor/cli cap sync android
+        run: |
+          npx --package=@capacitor/cli cap add android || true
+          npx --package=@capacitor/cli cap sync android
 
       - name: Build Android Signed Release APK
         env:
