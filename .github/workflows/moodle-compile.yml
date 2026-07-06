@@ -150,8 +150,8 @@ jobs:
       - name: Integrate Native Android Platform
         working-directory: moodleapp-source
         run: |
-          npx cap add android || true
-          npx cap sync android
+          npx @capacitor/cli add android || true
+          npx @capacitor/cli sync android
 
       - name: Build Android Signed Release APK
         env:
@@ -193,6 +193,7 @@ jobs:
           import os
           import json
           import glob
+          import sys
           from google.oauth2.service_account import Credentials
           from googleapiclient.discovery import build
           from googleapiclient.http import MediaFileUpload
@@ -203,12 +204,12 @@ jobs:
 
           file_id = os.environ['DRIVE_FILE_ID']
           
-          # Target only the signed release file, skipping any unsigned wrappers
           search_path = 'moodleapp-source/android/app/build/outputs/apk/release/*.apk'
           found_apks = [f for f in glob.glob(search_path) if "unsigned" not in f]
 
           if not found_apks:
-              raise FileNotFoundError("Could not find any signed generated APK file in the release folder!")
+              print("Error: Could not find any signed generated APK file in the release folder!")
+              sys.exit(1)
 
           apk_path = found_apks[0]
           print(f"Successfully located compiled target: {apk_path}")
