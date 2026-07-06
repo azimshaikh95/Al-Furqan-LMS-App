@@ -150,15 +150,10 @@ jobs:
       - name: Integrate Native Android Platform
         working-directory: moodleapp-source
         run: |
-          cat << 'EXPF' > capacitor.config.json
-          {
-            "appId": "com.iim.moodle",
-            "appName": "Zaytun",
-            "webDir": "www"
-          }
-          EXPF
-          npx --package=@capacitor/cli@4 cap add android || true
-          npx --package=@capacitor/cli@4 cap sync android
+          # Use npm to run Moodle's internally packaged build tooling scripts 
+          # which seamlessly handle local configuration injections
+          npm run setup:android || npx cap add android || true
+          npx cap copy android
 
       - name: Build Android Signed Release APK
         env:
