@@ -177,7 +177,7 @@ jobs:
         working-directory: moodleapp-source
         env:
           NODE_OPTIONS: --openssl-legacy-provider
-          NPM_CONFIG_LEGACY_PEER_DEPS: "true" # Forces global fallback inside cordova sub-shells
+          NPM_CONFIG_LEGACY_PEER_DEPS: "true"
         run: |
           npm run prod --prefix cordova-plugin-moodleapp
           npx cordova platform add android --no-telemetry || true
@@ -187,6 +187,11 @@ jobs:
           cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
           cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
           
+          # PATCH THE FIREBASE CONFIG PACKAGE MISMATCH ERROR HERE
+          echo "Patching native google-services.json configurations..."
+          find moodleapp-source/platforms/android/ -name "google-services.json" -exec sed -i 's/"package_name": "com.moodle.moodlemobile"/"package_name": "com.iim.moodle"/g' {} + || true
+          find moodleapp-source/ -name "google-services.json" -exec sed -i 's/"package_name": "com.moodle.moodlemobile"/"package_name": "com.iim.moodle"/g' {} + || true
+
           if [ -f "icon.png" ]; then
             echo "Injecting custom App Icons..."
             cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher.png || true
