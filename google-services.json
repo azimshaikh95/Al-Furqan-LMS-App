@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "771166713053",
+    "project_id": "moodle-brand-builder-pro",
+    "storage_bucket": "moodle-brand-builder-pro.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:771166713053:android:dff8685d6582a4aabb1734",
+        "android_client_info": {
+          "package_name": "com.iim.lms"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfo_p7PyuAkpmEoXZV1U1fQwBsjt6pOCE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
