@@ -80,12 +80,12 @@ jobs:
             sed -i 's/"maximumError": "5mb"/"maximumError": "12mb"/g' moodleapp-source/angular.json
           fi
 
-          # 2. Inject config.json safely into baseline framework trees
+          # 2. Inject config.json safely aligned to Firebase Package identity
           cat << 'EOF' > moodleapp-source/config.json
           {
             "siteurl": "https://learn.zaytunweb.online/",
             "appname": "Zaytun",
-            "app_id": "com.iim.moodle",
+            "app_id": "com.iim.lms",
             "version": "4.3.0",
             "customscheme": "iimzaytun",
             "disabledfeatures": [
@@ -97,11 +97,11 @@ jobs:
             "push_providers": [
               "airnotifier"
             ],
-            "fcm_sender_id": "",
+            "fcm_sender_id": "771166713053",
             "airnotifier_url": "https://messages.moodle.net/api/v2",
             "airnotifier_appid": "com.moodle.academy.push",
-            "ios_bundle_id": "com.iim.moodle",
-            "android_package_name": "com.iim.moodle",
+            "ios_bundle_id": "com.iim.lms",
+            "android_package_name": "com.iim.lms",
             "branding_options": {
               "logo_text": "REGENT",
               "logo_preset": 3,
@@ -156,17 +156,14 @@ jobs:
           }
           EOF
 
-          # 4. Update config.xml package layouts and natively bind the custom Firebase file
+          # 4. Aligned to com.iim.lms package requirements
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
-            sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.moodle"/g' moodleapp-source/config.xml
+            sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.lms"/g' moodleapp-source/config.xml
             sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
-            
-            # Formally declare resource mapping so Cordova handles google-services.json copy internal patterns
-            sed -i '/<\/platform>/i \        <resource-file src="google-services.json" target="app\/google-services.json" \/>' moodleapp-source/config.xml
           fi
 
-          # 5. Seed custom google-services.json directly into Moodle's baseline source root
+          # 5. Seed custom google-services.json directly into Moodle source root
           if [ -f "google-services.json" ]; then
             echo "Staging custom Firebase profile into moodleapp-source root..."
             cp google-services.json moodleapp-source/google-services.json
@@ -196,9 +193,8 @@ jobs:
           cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
           cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
           
-          # Force inject file parameters manually as a fallback secondary layer
           if [ -f "google-services.json" ]; then
-            echo "Injecting custom google-services.json into explicit native compilation tracks..."
+            echo "Injecting verified Firebase file structure..."
             cp google-services.json moodleapp-source/platforms/android/app/google-services.json
             cp google-services.json moodleapp-source/platforms/android/google-services.json
           fi
@@ -238,10 +234,8 @@ jobs:
         run: |
           cd moodleapp-source
           
-          # Clean Cordova staging cache completely to clear out the old google-services tracking pointers
           npx cordova clean android --no-telemetry || true
           
-          # Secure your file right back into place one more time
           if [ -f "../google-services.json" ]; then
             cp ../google-services.json platforms/android/app/google-services.json
             cp ../google-services.json platforms/android/google-services.json
