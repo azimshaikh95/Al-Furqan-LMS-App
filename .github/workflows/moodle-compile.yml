@@ -80,7 +80,7 @@ jobs:
             sed -i 's/"maximumError": "5mb"/"maximumError": "12mb"/g' moodleapp-source/angular.json
           fi
 
-          # 2. Inject config.json safely aligned to Firebase Package identity
+          # 2. Inject config.json safely into baseline framework trees
           cat << 'EOF' > moodleapp-source/config.json
           {
             "siteurl": "https://learn.zaytunweb.online/",
@@ -144,23 +144,22 @@ jobs:
           }
           EOF
 
-          # Inject styles right into Moodle's base sheet to enforce Webpack color variables
+          # Hard Injection into theme base maps so Webpack forces styling compilation
           cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
-          # 4. Aligned to com.iim.lms package requirements
+          # 4. Aligned config.xml to com.iim.lms requirements
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.lms"/g' moodleapp-source/config.xml
             sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
           fi
 
-          # 5. Seed custom google-services.json directly into Moodle source root
+          # 5. Copy custom Firebase file into root before compiler routines run
           if [ -f "google-services.json" ]; then
-            echo "Staging custom Firebase profile into moodleapp-source root..."
             cp google-services.json moodleapp-source/google-services.json
           fi
 
-          # 6. Trigger Moodle's baseline build orchestration task tool chains explicitly
+          # 6. Trigger Moodle's baseline build task orchestration chain explicitly
           cd moodleapp-source
           npx gulp
 
@@ -170,27 +169,26 @@ jobs:
           NODE_OPTIONS: --openssl-legacy-provider
         run: npm run build
 
-      - name: Generate Native Project Directories
+      - name: Integrate Native Platform Assets Headlessly
         working-directory: moodleapp-source
         env:
           NODE_OPTIONS: --openssl-legacy-provider
           NPM_CONFIG_LEGACY_PEER_DEPS: "true"
+          CI: "true" # Forces native-run emulator verification routines to skip cleanly
         run: |
           npm run prod --prefix cordova-plugin-moodleapp
           npx cordova platform add android --no-telemetry || true
           
-          # Force copy Google profile into root space so Cordova captures it natively
-          if [ -f "../google-services.json" ]; then
-            cp ../google-services.json google-services.json
-          fi
-
-          # Run raw initial release compile. This reliably creates platforms/android/gradlew
-          npx cordova build android --release --no-telemetry --no-interactive
+          # Initialize baseline compilation tree mapping configurations natively
+          npx cordova prepare android --no-telemetry
 
       - name: Force Overwrite Compiled Native Assets & Graphics
         run: |
-          # Enforce customized parameters across output bundles
-          cp moodleapp-source/config.json moodleapp-source/www/assets/config.json || true
+          # Safeguard custom configs directly across distribution endpoints
+          mkdir -p moodleapp-source/www/assets
+          mkdir -p moodleapp-source/platforms/android/app/src/main/assets/www/assets
+          
+          cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
           cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
           
           if [ -f "google-services.json" ]; then
@@ -200,7 +198,7 @@ jobs:
           fi
 
           if [ -f "icon.png" ]; then
-            echo "Injecting custom App Icons..."
+            echo "Injecting custom App Icons into res buckets..."
             cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher.png || true
             cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
             cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xdpi/ic_launcher.png || true
@@ -216,7 +214,7 @@ jobs:
           fi
 
           if [ -f "splash.png" ]; then
-            echo "Injecting custom Splash Screens..."
+            echo "Injecting custom Splash Screens into drawable targets..."
             cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-mdpi/screen.png || true
             cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-hdpi/screen.png || true
             cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-xhdpi/screen.png || true
@@ -239,7 +237,7 @@ jobs:
           cd moodleapp-source/platforms/android
           chmod +x gradlew
           
-          # Force compilation using assembleRelease to pack and sign the injected changes
+          # Force Gradle to build an optimized production build mapping with your custom styles intact
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/$SIGNING_STORE_FILE \
             -Pandroid.injected.signing.store.password=$SIGNING_STORE_PASSWORD \
