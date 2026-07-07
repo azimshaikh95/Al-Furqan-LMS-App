@@ -15,7 +15,6 @@ on:
         default: 'Zaytun'
 
 env:
-  # Global fallback engine initialization parameter
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
@@ -84,7 +83,7 @@ jobs:
             sed -i 's/"maximumError": "5mb"/"maximumError": "12mb"/g' moodleapp-source/angular.json
           fi
 
-          # 2. Inject config.json safely aligned to Firebase Package identity[cite: 3]
+          # 2. Inject config.json safely aligned to Firebase Package identity
           cat << 'EOF' > moodleapp-source/config.json
           {
             "siteurl": "https://learn.zaytunweb.online/",
@@ -151,14 +150,14 @@ jobs:
           # Hard Injection into theme base maps so Webpack forces styling compilation
           cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
-          # 4. Aligned config.xml to com.iim.lms requirements[cite: 3]
+          # 4. Aligned config.xml to com.iim.lms requirements
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.lms"/g' moodleapp-source/config.xml
             sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
           fi
 
-          # 5. Copy custom Firebase profile into root before compilation loops ignite[cite: 3]
+          # 5. Copy custom Firebase profile into root before compilation loops ignite
           if [ -f "google-services.json" ]; then
             cp google-services.json moodleapp-source/google-services.json
           fi
@@ -171,7 +170,45 @@ jobs:
         working-directory: moodleapp-source
         run: npm run build
 
-      - name: Generate Native Project Scaffolding
+      - name: Inject Custom Staging Files & Graphics
+        run: |
+          # 1. Seed native resources footprint structure ahead of time
+          mkdir -p moodleapp-source/platforms/android/app/src/main/assets/www/assets
+          cp moodleapp-source/config.json moodleapp-source/www/assets/config.json || true
+          
+          # 2. Inject structural assets
+          if [ -f "google-services.json" ]; then
+            cp google-services.json moodleapp-source/google-services.json
+          fi
+
+          # 3. Inject branding resources
+          if [ -f "icon.png" ]; then
+            mkdir -p moodleapp-source/resources/android
+            cp icon.png moodleapp-source/resources/android/icon.png
+            cp icon.png moodleapp-source/icon.png
+          fi
+          if [ -f "splash.png" ]; then
+            mkdir -p moodleapp-source/resources/android
+            cp splash.png moodleapp-source/resources/android/splash.png
+            cp splash.png moodleapp-source/splash.png
+          fi
+
+          # 4. Build custom Cordova build configuration file to fix the validateSigningRelease error
+          cat << 'EOF' > moodleapp-source/build.json
+          {
+            "android": {
+              "release": {
+                "keystore": "../release.keystore",
+                "storePassword": "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}",
+                "alias": "${{ secrets.ANDROID_KEY_ALIAS }}",
+                "password": "${{ secrets.ANDROID_KEY_PASSWORD }}",
+                "keystoreType": ""
+              }
+            }
+          }
+          EOF
+
+      - name: Assemble Final Native Signed Application Build
         working-directory: moodleapp-source
         env:
           NPM_CONFIG_LEGACY_PEER_DEPS: "true"
@@ -179,69 +216,8 @@ jobs:
           npm run prod --prefix cordova-plugin-moodleapp
           npx cordova platform add android --no-telemetry || true
           
-          # Force copy user firebase file right into root space so Cordova configures it natively[cite: 3]
-          if [ -f "../google-services.json" ]; then
-            cp ../google-services.json google-services.json
-          fi
-
-          # Compiles structural native libraries and builds gradlew without seeking hardware emulators
-          npx cordova build android --release --device --no-telemetry --no-interactive || true
-
-      - name: Force Overwrite Compiled Native Assets & Graphics
-        run: |
-          # Ensure target paths exist perfectly before hard copy injections
-          mkdir -p moodleapp-source/platforms/android/app/src/main/assets/www/assets
-          
-          # Overwrite configurations across active asset directories
-          cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
-          cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json
-          
-          if [ -f "google-services.json" ]; then
-            echo "Injecting verified Firebase file structure..."[cite: 3]
-            cp google-services.json moodleapp-source/platforms/android/app/google-services.json
-            cp google-services.json moodleapp-source/platforms/android/google-services.json
-          fi
-
-          if [ -f "icon.png" ]; then
-            echo "Injecting custom App Icons..."
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xdpi/ic_launcher.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
-            
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png || true
-          fi
-
-          if [ -f "splash.png" ]; then
-            echo "Injecting custom Splash Screens..."
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-mdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-hdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-xhdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-xxhdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-mdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-hdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-xhdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-xxhdpi/screen.png || true
-          fi
-
-      - name: Build Android Signed Release APK
-        run: |
-          cd moodleapp-source/platforms/android
-          chmod +x gradlew
-          
-          # Re-assemble everything cleanly now that brand elements are perfectly positioned inside the source trees
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/$SIGNING_STORE_FILE \
-            -Pandroid.injected.signing.store.password=$SIGNING_STORE_PASSWORD \
-            -Pandroid.injected.signing.key.alias=$SIGNING_KEY_ALIAS \
-            -Pandroid.injected.signing.key.password=$SIGNING_KEY_PASSWORD \
-            --no-daemon
+          # Compile the application bundle directly through Cordova using our target build profile
+          npx cordova build android --release --device --buildConfig=build.json --no-telemetry --no-interactive
 
       - name: Upload Signed APK Artifact
         uses: actions/upload-artifact@v4
