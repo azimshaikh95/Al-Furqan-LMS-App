@@ -15,8 +15,7 @@ on:
         default: 'Zaytun'
 
 env:
-  # GLOBAL CRITICAL FIX: Forces EVERY background build process (Webpack, Cordova, Angular, Ionic)
-  # to use the legacy crypto provider, preventing silent JS generation boot crashes.
+  # Global fallback engine initialization parameter
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
@@ -85,7 +84,7 @@ jobs:
             sed -i 's/"maximumError": "5mb"/"maximumError": "12mb"/g' moodleapp-source/angular.json
           fi
 
-          # 2. Inject config.json safely aligned to Firebase Package identity
+          # 2. Inject config.json safely aligned to Firebase Package identity[cite: 3]
           cat << 'EOF' > moodleapp-source/config.json
           {
             "siteurl": "https://learn.zaytunweb.online/",
@@ -149,17 +148,17 @@ jobs:
           }
           EOF
 
-          # Force Inject custom styles directly into theme base rules
+          # Hard Injection into theme base maps so Webpack forces styling compilation
           cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
-          # 4. Aligned config.xml to com.iim.lms package layout requirements
+          # 4. Aligned config.xml to com.iim.lms requirements[cite: 3]
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.lms"/g' moodleapp-source/config.xml
             sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
           fi
 
-          # 5. Copy custom Firebase profile into root before compilation loops ignite
+          # 5. Copy custom Firebase profile into root before compilation loops ignite[cite: 3]
           if [ -f "google-services.json" ]; then
             cp google-services.json moodleapp-source/google-services.json
           fi
@@ -172,7 +171,7 @@ jobs:
         working-directory: moodleapp-source
         run: npm run build
 
-      - name: Generate Native Project Infrastructure
+      - name: Generate Native Project Scaffolding
         working-directory: moodleapp-source
         env:
           NPM_CONFIG_LEGACY_PEER_DEPS: "true"
@@ -180,21 +179,20 @@ jobs:
           npm run prod --prefix cordova-plugin-moodleapp
           npx cordova platform add android --no-telemetry || true
           
-          # Force copy user firebase file right into root space so Cordova configures it natively
+          # Force copy user firebase file right into root space so Cordova configures it natively[cite: 3]
           if [ -f "../google-services.json" ]; then
             cp ../google-services.json google-services.json
           fi
 
-          # Natively prepare asset folders cleanly
-          npx cordova prepare android --no-telemetry
+          # Compiles structural native libraries and builds gradlew without seeking hardware emulators
+          npx cordova build android --release --device --no-telemetry --no-interactive || true
 
       - name: Force Overwrite Compiled Native Assets & Graphics
         run: |
-          # Ensure target folders are structured perfectly before hard copy injections
-          mkdir -p moodleapp-source/www/assets
+          # Ensure target paths exist perfectly before hard copy injections
           mkdir -p moodleapp-source/platforms/android/app/src/main/assets/www/assets
           
-          # Inject configurations explicitly into the prepared web views
+          # Overwrite configurations across active asset directories
           cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
           cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json
           
@@ -237,7 +235,7 @@ jobs:
           cd moodleapp-source/platforms/android
           chmod +x gradlew
           
-          # Compiles the final production application binary out of the patched trees
+          # Re-assemble everything cleanly now that brand elements are perfectly positioned inside the source trees
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/$SIGNING_STORE_FILE \
             -Pandroid.injected.signing.store.password=$SIGNING_STORE_PASSWORD \
