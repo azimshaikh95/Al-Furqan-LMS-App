@@ -112,7 +112,6 @@ jobs:
           }
           EOF
           
-          # Force copy to src/assets where Moodle's build system reads it
           mkdir -p moodleapp-source/src/assets
           cp moodleapp-source/config.json moodleapp-source/src/assets/config.json
 
@@ -145,7 +144,7 @@ jobs:
           }
           EOF
 
-          # HARD Injection into theme.base.scss so colors stick during production Webpack builds
+          # Inject styles right into Moodle's base sheet to enforce Webpack color variables
           cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
           # 4. Aligned to com.iim.lms package requirements
@@ -165,15 +164,81 @@ jobs:
           cd moodleapp-source
           npx gulp
 
-      - name: Execute Moodle Production Native Compilation Pipeline
+      - name: Compile Production Web Assets
+        working-directory: moodleapp-source
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+        run: npm run build
+
+      - name: Headless Native Infrastructure Generation
         working-directory: moodleapp-source
         env:
           NODE_OPTIONS: --openssl-legacy-provider
           NPM_CONFIG_LEGACY_PEER_DEPS: "true"
-        # --no-native-run tells Ionic NOT to launch an emulator, allowing headlessly compiling the project
-        run: npm run prod:android -- --no-native-run || true
+        run: |
+          npm run prod --prefix cordova-plugin-moodleapp
+          # Prepare structural environment variables headlessly without running an emulator
+          npx cordova platform add android --no-telemetry || true
+          npx cordova prepare android --no-telemetry
 
-      - name: Force Brute-Force Overwrite Assets & Assemble Production Bundle
+      - name: Force Overwrite Compiled Native Assets & Graphics
+        run: |
+          # Enforce customized parameters across output bundles
+          mkdir -p moodleapp-source/www/assets
+          mkdir -p moodleapp-source/platforms/android/app/src/main/assets/www/assets
+          
+          cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
+          cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
+          
+          if [ -f "google-services.json" ]; then
+            echo "Injecting verified Firebase file structure..."
+            cp google-services.json moodleapp-source/platforms/android/app/google-services.json
+            cp google-services.json moodleapp-source/platforms/android/google-services.json
+          fi
+
+          if [ -f "icon.png" ]; then
+            echo "Injecting custom App Icons..."
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/mipmap-mdpi
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/mipmap-hdpi
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/mipmap-xhdpi
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/mipmap-xxhdpi
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/mipmap-xxxhdpi
+            
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
+            
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png || true
+            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png || true
+          fi
+
+          if [ -f "splash.png" ]; then
+            echo "Injecting custom Splash Screens..."
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/drawable-land-mdpi
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/drawable-land-hdpi
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/drawable-land-xhdpi
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/drawable-land-xxhdpi
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/drawable-port-mdpi
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/drawable-port-hdpi
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/drawable-port-xhdpi
+            mkdir -p moodleapp-source/platforms/android/app/src/main/res/drawable-port-xxhdpi
+            
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-mdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-hdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-xhdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-xxhdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-mdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-hdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-xhdpi/screen.png || true
+            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-xxhdpi/screen.png || true
+          fi
+
+      - name: Build Android Signed Release APK
         env:
           SIGNING_STORE_FILE: "release.keystore"
           SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -182,53 +247,7 @@ jobs:
           GRADLE_USER_HOME: "${{ github.workspace }}/.gradle_home"
           NODE_OPTIONS: --openssl-legacy-provider
         run: |
-          cd moodleapp-source
-          
-          echo "Intercepting platform state: Forcing custom branding data into compiled target layers..."
-          
-          # Overwrite internal asset configuration bundles inside native project tracks
-          cp config.json www/assets/config.json || true
-          cp config.json platforms/android/app/src/main/assets/www/assets/config.json || true
-          
-          # Overwrite internal Firebase tokens
-          if [ -f "../google-services.json" ]; then
-            cp ../google-services.json platforms/android/app/google-services.json || true
-            cp ../google-services.json platforms/android/google-services.json || true
-          fi
-          
-          # Force Overwrite App Launcher Icons
-          if [ -f "../icon.png" ]; then
-            echo "Injecting custom App Icons..."
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher.png || true
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-xdpi/ic_launcher.png || true
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png || true
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png || true
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
-            
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png || true
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png || true
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-xdpi/ic_launcher_foreground.png || true
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png || true
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png || true
-            cp ../icon.png platforms/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png || true
-          fi
-
-          # Force Overwrite Launch Splash Screens
-          if [ -f "../splash.png" ]; then
-            echo "Injecting custom Splash Screens..."
-            cp ../splash.png platforms/android/app/src/main/res/drawable-land-mdpi/screen.png || true
-            cp ../splash.png platforms/android/app/src/main/res/drawable-land-hdpi/screen.png || true
-            cp ../splash.png platforms/android/app/src/main/res/drawable-land-xhdpi/screen.png || true
-            cp ../splash.png platforms/android/app/src/main/res/drawable-land-xxhdpi/screen.png || true
-            cp ../splash.png ../splash.png platforms/android/app/src/main/res/drawable-port-mdpi/screen.png || true
-            cp ../splash.png platforms/android/app/src/main/res/drawable-port-hdpi/screen.png || true
-            cp ../splash.png platforms/android/app/src/main/res/drawable-port-xhdpi/screen.png || true
-            cp ../splash.png platforms/android/app/src/main/res/drawable-port-xxhdpi/screen.png || true
-          fi
-          
-          # Assemble final distribution package bundle cleanly via Gradle directly
-          cd platforms/android
+          cd moodleapp-source/platforms/android
           chmod +x gradlew
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/$SIGNING_STORE_FILE \
