@@ -193,7 +193,7 @@ jobs:
             cp splash.png moodleapp-source/splash.png
           fi
 
-          # 4. Build custom Cordova build configuration file to fix the validateSigningRelease error
+          # 4. Build custom Cordova build configuration file to handle release signatures natively
           cat << 'EOF' > moodleapp-source/build.json
           {
             "android": {
@@ -223,7 +223,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: "${{ github.event.inputs.app_name || 'Zaytun' }}-Signed-APK"
-          path: moodleapp-source/platforms/android/app/build/outputs/apk/release/*-release.apk
+          # Scan recursively so either location matches the GitHub artifact engine safely
+          path: moodleapp-source/platforms/android/**/*.apk
 
       - name: Set up Python Environment
         uses: actions/setup-python@v5
@@ -261,14 +262,28 @@ jobs:
           drive_service = build('drive', 'v3', credentials=credentials)
           file_id = os.environ['DRIVE_FILE_ID']
           
-          search_path = 'moodleapp-source/platforms/android/app/build/outputs/apk/release/*.apk'
-          found_apks = [f for f in glob.glob(search_path) if "unsigned" not in f]
+          # EXPANDED SEARCH GLOB: Looks in standard release locations and fallback Cordova platforms layout targets
+          search_patterns = [
+              'moodleapp-source/platforms/android/app/build/outputs/apk/release/*.apk',
+              'moodleapp-source/platforms/android/app/build/outputs/apk/*/*.apk',
+              'moodleapp-source/platforms/android/build/outputs/apk/release/*.apk',
+              'moodleapp-source/platforms/android/release/*.apk',
+              'moodleapp-source/platforms/android/*.apk'
+          ]
+          
+          found_apks = []
+          for pattern in search_patterns:
+              found_apks.extend([f for f in glob.glob(pattern) if "unsigned" not in f])
 
           if not found_apks:
-              print("Error: Could not find any signed generated APK file in the release folder!")
+              print("Error: Could not find any signed generated APK file in the workspace directory trees!")
               sys.exit(1)
 
+          # Sort by modification time to grab the most recent compiled asset
+          found_apks.sort(key=os.path.getmtime, reverse=True)
           apk_path = found_apks[0]
+          print(f"Found production artifact target for injection: {apk_path}")
+          
           media = MediaFileUpload(apk_path, mimetype='application/vnd.android.package-archive', resumable=True)
           updated_file = drive_service.files().update(fileId=file_id, media_body=media).execute()
           print("Success! Google Drive file updated cleanly.")
