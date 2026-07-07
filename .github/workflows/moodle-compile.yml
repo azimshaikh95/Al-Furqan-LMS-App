@@ -163,7 +163,13 @@ jobs:
             sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
           fi
 
-          # 5. Trigger Moodle's baseline build orchestration task tool chains explicitly
+          # 5. Seed custom google-services.json directly into Moodle's baseline source root
+          if [ -f "google-services.json" ]; then
+            echo "Staging custom Firebase profile into moodleapp-source root..."
+            cp google-services.json moodleapp-source/google-services.json
+          fi
+
+          # 6. Trigger Moodle's baseline build orchestration task tool chains explicitly
           cd moodleapp-source
           npx gulp
 
@@ -187,13 +193,11 @@ jobs:
           cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
           cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
           
-          # AUTOMATED INJECTION OF YOUR FIREBASE FILE
+          # HARD INJECTION: Copy your custom google-services.json directly into the prepared platform app directories
           if [ -f "google-services.json" ]; then
-            echo "Custom google-services.json found! Injecting into native target configurations..."
-            cp google-services.json moodleapp-source/google-services.json
+            echo "Injecting custom google-services.json into active Cordova wrapper targets..."
             cp google-services.json moodleapp-source/platforms/android/app/google-services.json
-          else
-            echo "Warning: No custom google-services.json found in root repository folder!"
+            cp google-services.json moodleapp-source/platforms/android/google-services.json
           fi
 
           if [ -f "icon.png" ]; then
@@ -230,6 +234,13 @@ jobs:
           NPM_CONFIG_LEGACY_PEER_DEPS: "true"
         run: |
           cd moodleapp-source
+          
+          # Force copy user file right before build initiates to safeguard against hooks clobbering it
+          if [ -f "../google-services.json" ]; then
+            cp ../google-services.json platforms/android/app/google-services.json
+            cp ../google-services.json platforms/android/google-services.json
+          fi
+          
           npx ionic cordova build android --prod --no-interactive
           
           cd platforms/android
