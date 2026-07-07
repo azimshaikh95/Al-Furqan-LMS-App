@@ -112,6 +112,7 @@ jobs:
           }
           EOF
           
+          # Force copy to src/assets where Moodle's build system reads it
           mkdir -p moodleapp-source/src/assets
           cp moodleapp-source/config.json moodleapp-source/src/assets/config.json
 
@@ -144,7 +145,7 @@ jobs:
           }
           EOF
 
-          # HARD BRUTE-FORCE STYLING: Inject styles right into Moodle's base sheet to ensure color compiled persistence
+          # HARD Injection into theme.base.scss so colors stick during production Webpack builds
           cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
           # 4. Aligned to com.iim.lms package requirements
@@ -164,53 +165,35 @@ jobs:
           cd moodleapp-source
           npx gulp
 
-      - name: Compile Production Web Assets
-        working-directory: moodleapp-source
-        env:
-          NODE_OPTIONS: --openssl-legacy-provider
-        run: npm run build
-
-      - name: Integrate Native Android Platform
+      - name: Execute Moodle Production Native Compilation Pipeline
         working-directory: moodleapp-source
         env:
           NODE_OPTIONS: --openssl-legacy-provider
           NPM_CONFIG_LEGACY_PEER_DEPS: "true"
-        run: |
-          npm run prod --prefix cordova-plugin-moodleapp
-          npx cordova platform add android --no-telemetry || true
+        # --no-native-run tells Ionic NOT to launch an emulator, allowing headlessly compiling the project
+        run: npm run prod:android -- --no-native-run || true
 
-      - name: Build Android Signed Release APK
+      - name: Force Brute-Force Overwrite Assets & Assemble Production Bundle
         env:
           SIGNING_STORE_FILE: "release.keystore"
           SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           GRADLE_USER_HOME: "${{ github.workspace }}/.gradle_home"
-          NODE_ENV: production
           NODE_OPTIONS: --openssl-legacy-provider
-          NPM_CONFIG_LEGACY_PEER_DEPS: "true"
         run: |
           cd moodleapp-source
           
-          npx cordova clean android --no-telemetry || true
+          echo "Intercepting platform state: Forcing custom branding data into compiled target layers..."
           
-          # 1. Run Cordova native code bundling compilation task
-          npx ionic cordova build android --prod --no-interactive
+          # Overwrite internal asset configuration bundles inside native project tracks
+          cp config.json www/assets/config.json || true
+          cp config.json platforms/android/app/src/main/assets/www/assets/config.json || true
           
-          # =========================================================================
-          # HARD INJECTION INTERCEPT: Overwrite ALL assets AFTER Cordova build finishes 
-          # but BEFORE Gradle compiles the final release binary. This prevents clobbering!
-          # =========================================================================
-          echo "Intercepting build: Applying hard copy injection layer to prepared native target tracks..."
-          
-          # Force Overwrite Web App Configuration Targets
-          cp config.json www/assets/config.json
-          cp config.json platforms/android/app/src/main/assets/www/assets/config.json
-          
-          # Force Overwrite Firebase target contexts
+          # Overwrite internal Firebase tokens
           if [ -f "../google-services.json" ]; then
-            cp ../google-services.json platforms/android/app/google-services.json
-            cp ../google-services.json platforms/android/google-services.json
+            cp ../google-services.json platforms/android/app/google-services.json || true
+            cp ../google-services.json platforms/android/google-services.json || true
           fi
           
           # Force Overwrite App Launcher Icons
@@ -238,13 +221,13 @@ jobs:
             cp ../splash.png platforms/android/app/src/main/res/drawable-land-hdpi/screen.png || true
             cp ../splash.png platforms/android/app/src/main/res/drawable-land-xhdpi/screen.png || true
             cp ../splash.png platforms/android/app/src/main/res/drawable-land-xxhdpi/screen.png || true
-            cp ../splash.png platforms/android/app/src/main/res/drawable-port-mdpi/screen.png || true
+            cp ../splash.png ../splash.png platforms/android/app/src/main/res/drawable-port-mdpi/screen.png || true
             cp ../splash.png platforms/android/app/src/main/res/drawable-port-hdpi/screen.png || true
             cp ../splash.png platforms/android/app/src/main/res/drawable-port-xhdpi/screen.png || true
             cp ../splash.png platforms/android/app/src/main/res/drawable-port-xxhdpi/screen.png || true
           fi
           
-          # 2. Complete final native Gradle wrapper assembly
+          # Assemble final distribution package bundle cleanly via Gradle directly
           cd platforms/android
           chmod +x gradlew
           ./gradlew assembleRelease \
