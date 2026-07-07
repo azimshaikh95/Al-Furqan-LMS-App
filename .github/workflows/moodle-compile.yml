@@ -119,42 +119,33 @@ jobs:
           mkdir -p moodleapp-source/src/theme
           cat << 'EOF' > moodleapp-source/src/theme/variables.scss
           :root {
-            --ion-color-primary: #800020;
-            --ion-color-primary-rgb: 128,0,32;
-            --ion-color-primary-contrast: #ffffff;
-            --ion-color-primary-contrast-rgb: 255,255,255;
-            --ion-color-primary-shade: #5a0020;
-            --ion-color-primary-tint: #a62646;
+            --ion-color-primary: #800020 !important;
+            --ion-color-primary-rgb: 128,0,32 !important;
+            --ion-color-primary-contrast: #ffffff !important;
+            --ion-color-primary-contrast-rgb: 255,255,255 !important;
+            --ion-color-primary-shade: #5a0020 !important;
+            --ion-color-primary-tint: #a62646 !important;
 
-            --ion-color-secondary: #fdfbeb;
-            --ion-color-secondary-rgb: 253,251,235;
-            --ion-color-secondary-contrast: #2d1515;
+            --ion-color-secondary: #fdfbeb !important;
+            --ion-color-secondary-rgb: 253,251,235 !important;
+            --ion-color-secondary-contrast: #2d1515 !important;
 
-            --ion-color-accent: #d4af37;
-            --ion-color-accent-rgb: 212,175,55;
+            --ion-color-accent: #d4af37 !important;
+            --ion-color-accent-rgb: 212,175,55 !important;
 
-            --ion-background-color: #fcfcf9;
-            --ion-background-color-rgb: 252,252,249;
+            --ion-background-color: #fcfcf9 !important;
+            --ion-background-color-rgb: 252,252,249 !important;
 
-            --ion-text-color: #2d1515;
-            --ion-text-color-rgb: 45,21,21;
+            --ion-text-color: #2d1515 !important;
+            --ion-text-color-rgb: 45,21,21 !important;
 
-            --app-header-bg: #5c061a;
-            --app-header-text: #ffffff;
-          }
-
-          body.dark {
-            --ion-color-primary: #9e1b32;
-            --ion-color-primary-rgb: 158,27,50;
-            --ion-color-primary-contrast: #fffdf5;
-            --ion-color-secondary: #3d0a11;
-            --ion-color-secondary-contrast: #fdf5f5;
-            --ion-background-color: #0f0507;
-            --ion-text-color: #fdf5f5;
-            --app-header-bg: #210005;
-            --app-header-text: #fffdf5;
+            --app-header-bg: #5c061a !important;
+            --app-header-text: #ffffff !important;
           }
           EOF
+
+          # HARD BRUTE-FORCE STYLING: Inject styles right into Moodle's base sheet to ensure color compiled persistence
+          cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
           # 4. Aligned to com.iim.lms package requirements
           if [ -f "moodleapp-source/config.xml" ]; then
@@ -188,39 +179,6 @@ jobs:
           npm run prod --prefix cordova-plugin-moodleapp
           npx cordova platform add android --no-telemetry || true
 
-      - name: Force Overwrite Compiled Native Assets & Graphics
-        run: |
-          cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
-          cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
-          
-          if [ -f "google-services.json" ]; then
-            echo "Injecting verified Firebase file structure..."
-            cp google-services.json moodleapp-source/platforms/android/app/google-services.json
-            cp google-services.json moodleapp-source/platforms/android/google-services.json
-          fi
-
-          if [ -f "icon.png" ]; then
-            echo "Injecting custom App Icons..."
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xdpi/ic_launcher.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png || true
-            cp icon.png moodleapp-source/platforms/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
-          fi
-
-          if [ -f "splash.png" ]; then
-            echo "Injecting custom Splash Screens..."
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-mdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-hdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-xhdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-land-xxhdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-mdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-hdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-xhdpi/screen.png || true
-            cp splash.png moodleapp-source/platforms/android/app/src/main/res/drawable-port-xxhdpi/screen.png || true
-          fi
-
       - name: Build Android Signed Release APK
         env:
           SIGNING_STORE_FILE: "release.keystore"
@@ -236,13 +194,57 @@ jobs:
           
           npx cordova clean android --no-telemetry || true
           
+          # 1. Run Cordova native code bundling compilation task
+          npx ionic cordova build android --prod --no-interactive
+          
+          # =========================================================================
+          # HARD INJECTION INTERCEPT: Overwrite ALL assets AFTER Cordova build finishes 
+          # but BEFORE Gradle compiles the final release binary. This prevents clobbering!
+          # =========================================================================
+          echo "Intercepting build: Applying hard copy injection layer to prepared native target tracks..."
+          
+          # Force Overwrite Web App Configuration Targets
+          cp config.json www/assets/config.json
+          cp config.json platforms/android/app/src/main/assets/www/assets/config.json
+          
+          # Force Overwrite Firebase target contexts
           if [ -f "../google-services.json" ]; then
             cp ../google-services.json platforms/android/app/google-services.json
             cp ../google-services.json platforms/android/google-services.json
           fi
           
-          npx ionic cordova build android --prod --no-interactive
+          # Force Overwrite App Launcher Icons
+          if [ -f "../icon.png" ]; then
+            echo "Injecting custom App Icons..."
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher.png || true
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-xdpi/ic_launcher.png || true
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png || true
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png || true
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
+            
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png || true
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png || true
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-xdpi/ic_launcher_foreground.png || true
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png || true
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png || true
+            cp ../icon.png platforms/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png || true
+          fi
+
+          # Force Overwrite Launch Splash Screens
+          if [ -f "../splash.png" ]; then
+            echo "Injecting custom Splash Screens..."
+            cp ../splash.png platforms/android/app/src/main/res/drawable-land-mdpi/screen.png || true
+            cp ../splash.png platforms/android/app/src/main/res/drawable-land-hdpi/screen.png || true
+            cp ../splash.png platforms/android/app/src/main/res/drawable-land-xhdpi/screen.png || true
+            cp ../splash.png platforms/android/app/src/main/res/drawable-land-xxhdpi/screen.png || true
+            cp ../splash.png platforms/android/app/src/main/res/drawable-port-mdpi/screen.png || true
+            cp ../splash.png platforms/android/app/src/main/res/drawable-port-hdpi/screen.png || true
+            cp ../splash.png platforms/android/app/src/main/res/drawable-port-xhdpi/screen.png || true
+            cp ../splash.png platforms/android/app/src/main/res/drawable-port-xxhdpi/screen.png || true
+          fi
           
+          # 2. Complete final native Gradle wrapper assembly
           cd platforms/android
           chmod +x gradlew
           ./gradlew assembleRelease \
