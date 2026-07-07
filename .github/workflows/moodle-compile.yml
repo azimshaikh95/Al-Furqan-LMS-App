@@ -156,11 +156,14 @@ jobs:
           }
           EOF
 
-          # 4. Update the target identifier inside config.xml
+          # 4. Update config.xml package layouts and natively bind the custom Firebase file
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.moodle"/g' moodleapp-source/config.xml
             sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
+            
+            # Formally declare resource mapping so Cordova handles google-services.json copy internal patterns
+            sed -i '/<\/platform>/i \        <resource-file src="google-services.json" target="app\/google-services.json" \/>' moodleapp-source/config.xml
           fi
 
           # 5. Seed custom google-services.json directly into Moodle's baseline source root
@@ -193,9 +196,9 @@ jobs:
           cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
           cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
           
-          # HARD INJECTION: Copy your custom google-services.json directly into the prepared platform app directories
+          # Force inject file parameters manually as a fallback secondary layer
           if [ -f "google-services.json" ]; then
-            echo "Injecting custom google-services.json into active Cordova wrapper targets..."
+            echo "Injecting custom google-services.json into explicit native compilation tracks..."
             cp google-services.json moodleapp-source/platforms/android/app/google-services.json
             cp google-services.json moodleapp-source/platforms/android/google-services.json
           fi
@@ -235,7 +238,10 @@ jobs:
         run: |
           cd moodleapp-source
           
-          # Force copy user file right before build initiates to safeguard against hooks clobbering it
+          # Clean Cordova staging cache completely to clear out the old google-services tracking pointers
+          npx cordova clean android --no-telemetry || true
+          
+          # Secure your file right back into place one more time
           if [ -f "../google-services.json" ]; then
             cp ../google-services.json platforms/android/app/google-services.json
             cp ../google-services.json platforms/android/google-services.json
