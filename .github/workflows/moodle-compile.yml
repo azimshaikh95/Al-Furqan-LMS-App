@@ -187,10 +187,14 @@ jobs:
           cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
           cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
           
-          # PATCH THE FIREBASE CONFIG PACKAGE MISMATCH ERROR HERE
-          echo "Patching native google-services.json configurations..."
-          find moodleapp-source/platforms/android/ -name "google-services.json" -exec sed -i 's/"package_name": "com.moodle.moodlemobile"/"package_name": "com.iim.moodle"/g' {} + || true
-          find moodleapp-source/ -name "google-services.json" -exec sed -i 's/"package_name": "com.moodle.moodlemobile"/"package_name": "com.iim.moodle"/g' {} + || true
+          # AUTOMATED INJECTION OF YOUR FIREBASE FILE
+          if [ -f "google-services.json" ]; then
+            echo "Custom google-services.json found! Injecting into native target configurations..."
+            cp google-services.json moodleapp-source/google-services.json
+            cp google-services.json moodleapp-source/platforms/android/app/google-services.json
+          else
+            echo "Warning: No custom google-services.json found in root repository folder!"
+          fi
 
           if [ -f "icon.png" ]; then
             echo "Injecting custom App Icons..."
