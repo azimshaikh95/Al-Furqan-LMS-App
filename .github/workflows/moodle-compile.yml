@@ -14,6 +14,11 @@ on:
         required: true
         default: 'Zaytun'
 
+env:
+  # GLOBAL CRITICAL FIX: Forces EVERY background build process (Webpack, Cordova, Angular, Ionic)
+  # to use the legacy crypto provider, preventing silent JS generation boot crashes.
+  NODE_OPTIONS: --openssl-legacy-provider
+
 jobs:
   build-android:
     name: Build Signed Android APK
@@ -144,7 +149,7 @@ jobs:
           }
           EOF
 
-          # Hard Injection into theme base maps so Webpack forces styling compilation
+          # Force Inject custom styles directly into theme base rules
           cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
           # 4. Aligned config.xml to com.iim.lms package layout requirements
@@ -152,9 +157,6 @@ jobs:
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.lms"/g' moodleapp-source/config.xml
             sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
-            
-            # Explicitly force Cordova configuration logic to preserve google-services asset location mappings
-            sed -i '/<\/platform>/i \        <resource-file src="google-services.json" target="app\/google-services.json" \/>' moodleapp-source/config.xml
           fi
 
           # 5. Copy custom Firebase profile into root before compilation loops ignite
@@ -168,30 +170,33 @@ jobs:
 
       - name: Compile Production Web Assets
         working-directory: moodleapp-source
-        env:
-          NODE_OPTIONS: --openssl-legacy-provider
         run: npm run build
 
       - name: Generate Native Project Infrastructure
         working-directory: moodleapp-source
         env:
-          NODE_OPTIONS: --openssl-legacy-provider
           NPM_CONFIG_LEGACY_PEER_DEPS: "true"
         run: |
           npm run prod --prefix cordova-plugin-moodleapp
           npx cordova platform add android --no-telemetry || true
           
-          # This forces Cordova to construct the build directories, create gradlew, and bundle production assets
-          npx cordova build android --release --no-telemetry --no-interactive || true
+          # Force copy user firebase file right into root space so Cordova configures it natively
+          if [ -f "../google-services.json" ]; then
+            cp ../google-services.json google-services.json
+          fi
+
+          # Natively prepare asset folders cleanly
+          npx cordova prepare android --no-telemetry
 
       - name: Force Overwrite Compiled Native Assets & Graphics
         run: |
-          # Verify target structures exist to block copy crashes
+          # Ensure target folders are structured perfectly before hard copy injections
+          mkdir -p moodleapp-source/www/assets
           mkdir -p moodleapp-source/platforms/android/app/src/main/assets/www/assets
           
-          # Overwrite finalized distribution target endpoints with custom files
-          cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json || true
-          cp moodleapp-source/config.json moodleapp-source/www/assets/config.json || true
+          # Inject configurations explicitly into the prepared web views
+          cp moodleapp-source/config.json moodleapp-source/www/assets/config.json
+          cp moodleapp-source/config.json moodleapp-source/platforms/android/app/src/main/assets/www/assets/config.json
           
           if [ -f "google-services.json" ]; then
             echo "Injecting verified Firebase file structure..."[cite: 3]
@@ -228,18 +233,11 @@ jobs:
           fi
 
       - name: Build Android Signed Release APK
-        env:
-          SIGNING_STORE_FILE: "release.keystore"
-          SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          GRADLE_USER_HOME: "${{ github.workspace }}/.gradle_home"
-          NODE_OPTIONS: --openssl-legacy-provider
         run: |
           cd moodleapp-source/platforms/android
           chmod +x gradlew
           
-          # Re-assemble everything cleanly now that brand elements are perfectly positioned inside the source trees
+          # Compiles the final production application binary out of the patched trees
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/$SIGNING_STORE_FILE \
             -Pandroid.injected.signing.store.password=$SIGNING_STORE_PASSWORD \
