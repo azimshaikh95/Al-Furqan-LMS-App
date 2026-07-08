@@ -150,11 +150,14 @@ jobs:
           # Hard Injection into theme base maps so Webpack forces styling compilation
           cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
-          # 4. Aligned config.xml to com.iim.lms requirements
+          # 4. Aligned config.xml to com.iim.lms requirements & force high compatibility flags
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.lms"/g' moodleapp-source/config.xml
             sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
+            
+            # CRITICAL COMPATIBILITY FIX: Declares standard minimum SDK target mapping to bypass parsing faults
+            sed -i '/<platform name="android">/a \        <preference name="android-minSdkVersion" value="24" \/>' moodleapp-source/config.xml
           fi
 
           # 5. Copy custom Firebase profile into root before compilation loops ignite
@@ -212,10 +215,11 @@ jobs:
         run: |
           npm run prod --prefix cordova-plugin-moodleapp
           
-          # Use the Ionic CLI wrapper directly to mount platforms and bind dependencies cleanly
+          # Force clean platform caching to isolate previous double-signing remnants
+          npx ionic cordova platform remove android --no-interactive || true
           npx ionic cordova platform add android --no-interactive --confirm
           
-          # Compile the application bundle directly through Ionic's unified pipeline configuration
+          # Compile optimized production build. This handles signing natively via build.json
           npx ionic cordova build android --release --device --buildConfig=build.json --no-interactive -- --apk
 
       - name: Debug File System Output Mapping
