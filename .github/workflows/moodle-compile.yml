@@ -83,7 +83,7 @@ jobs:
             sed -i 's/"maximumError": "5mb"/"maximumError": "12mb"/g' moodleapp-source/angular.json
           fi
 
-          # 2. Inject config.json safely aligned to Firebase Package identity[cite: 1]
+          # 2. Inject config.json safely aligned to Firebase Package identity
           cat << 'EOF' > moodleapp-source/config.json
           {
             "siteurl": "https://learn.zaytunweb.online/",
@@ -150,14 +150,14 @@ jobs:
           # Hard Injection into theme base maps so Webpack forces styling compilation
           cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
-          # 4. Aligned config.xml to com.iim.lms requirements[cite: 1]
+          # 4. Aligned config.xml to com.iim.lms requirements
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.lms"/g' moodleapp-source/config.xml
             sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
           fi
 
-          # 5. Copy custom Firebase profile into root before compilation loops ignite[cite: 1]
+          # 5. Copy custom Firebase profile into root before compilation loops ignite
           if [ -f "google-services.json" ]; then
             cp google-services.json moodleapp-source/google-services.json
           fi
@@ -172,16 +172,13 @@ jobs:
 
       - name: Inject Custom Staging Files & Graphics
         run: |
-          # 1. Seed native resources footprint structure ahead of time
-          mkdir -p moodleapp-source/platforms/android/app/src/main/assets/www/assets
+          mkdir -p moodleapp-source/www/assets
           cp moodleapp-source/config.json moodleapp-source/www/assets/config.json || true
           
-          # 2. Inject structural assets
           if [ -f "google-services.json" ]; then
             cp google-services.json moodleapp-source/google-services.json
           fi
 
-          # 3. Inject branding resources
           if [ -f "icon.png" ]; then
             mkdir -p moodleapp-source/resources/android
             cp icon.png moodleapp-source/resources/android/icon.png
@@ -193,7 +190,7 @@ jobs:
             cp splash.png moodleapp-source/splash.png
           fi
 
-          # 4. Build custom Cordova build configuration file to handle release signatures natively
+          # Create production build mapping profile for Ionic/Cordova native tools integration
           cat << 'EOF' > moodleapp-source/build.json
           {
             "android": {
@@ -214,10 +211,17 @@ jobs:
           NPM_CONFIG_LEGACY_PEER_DEPS: "true"
         run: |
           npm run prod --prefix cordova-plugin-moodleapp
-          npx cordova platform add android --no-telemetry || true
           
-          # -- --apk explicitly instructs the Gradle processor to generate an APK rather than a bundle mapping
-          npx cordova build android --release --device --buildConfig=build.json --no-telemetry --no-interactive -- --apk
+          # Use the Ionic CLI wrapper directly to mount platforms and bind dependencies cleanly
+          npx ionic cordova platform add android --no-interactive --confirm
+          
+          # Compile the application bundle directly through Ionic's unified pipeline configuration
+          npx ionic cordova build android --release --device --buildConfig=build.json --no-interactive -- --apk
+
+      - name: Debug File System Output Mapping
+        run: |
+          echo "Scanning workspace for output structures..."
+          find . -name "*.apk" -o -name "*.aab" || true
 
       - name: Upload Signed Application Artifact
         uses: actions/upload-artifact@v4
@@ -263,24 +267,16 @@ jobs:
           drive_service = build('drive', 'v3', credentials=credentials)
           file_id = os.environ['DRIVE_FILE_ID']
           
-          # Dual lookup matching either output extension layout explicitly
-          search_extensions = ['*.apk', '*.aab']
-          search_roots = [
-              'moodleapp-source/platforms/android/app/build/outputs/apk/release/',
-              'moodleapp-source/platforms/android/app/build/outputs/bundle/release/',
-              'moodleapp-source/platforms/android/app/build/outputs/*/',
-              'moodleapp-source/platforms/android/release/',
-              'moodleapp-source/platforms/android/'
-          ]
+          # Deep structural recursive scanning sequence
+          search_extensions = ['**/*.apk', '**/*.aab']
           
           found_files = []
           for ext in search_extensions:
-              for root in search_roots:
-                  pattern = os.path.join(root, ext)
-                  found_files.extend([f for f in glob.glob(pattern) if "unsigned" not in f])
+              pattern = os.path.join('moodleapp-source/platforms/android', ext)
+              found_files.extend([f for f in glob.glob(pattern, recursive=True) if "unsigned" not in f])
 
           if not found_files:
-              print("Error: Could not find any signed generated APK or AAB file in the workspace directory trees!")
+              print("Error: Could not find any signed generated production binary inside the platforms directory workspace structure!")
               sys.exit(1)
 
           # Target the newest generated binary file
