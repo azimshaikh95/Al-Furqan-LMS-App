@@ -12,7 +12,7 @@ on:
       app_name:
         description: 'Output App Name'
         required: true
-        default: 'Zaytun'
+        default: 'Al-Furqan'
 
 env:
   NODE_OPTIONS: --openssl-legacy-provider
@@ -78,42 +78,170 @@ jobs:
             sed -i 's/"maximumError": "5mb"/"maximumError": "12mb"/g' moodleapp-source/angular.json
           fi
 
-          # 2. Inject config.json safely aligned to Firebase Package identity
-          cat << 'EOF' > moodleapp-source/config.json
+          # 2. Inject your exact moodle.config.json directly into the root folder
+          cat << 'EOF' > moodleapp-source/moodle.config.json
           {
-            "siteurl": "https://learn.zaytunweb.online/",
-            "appname": "Zaytun",
-            "app_id": "com.iim.lms",
-            "version": "4.3.0",
-            "customscheme": "iimzaytun",
-            "disabledfeatures": [
-              "grades",
-              "files",
-              "calendar",
-              "chat"
-            ],
-            "push_providers": [
-              "airnotifier"
-            ],
-            "fcm_sender_id": "771166713053",
-            "airnotifier_url": "https://messages.moodle.net/api/v2",
-            "airnotifier_appid": "com.moodle.academy.push",
-            "ios_bundle_id": "com.iim.lms",
-            "android_package_name": "com.iim.lms",
-            "branding_options": {
-              "logo_text": "REGENT",
-              "logo_preset": 3,
-              "primary_color": "#800020",
-              "accent_color": "#d4af37",
-              "header_bg": "#5c061a"
-            }
+              "app_id": "com.iim.lms",
+              "appname": "Al-Furqan",
+              "versioncode": 53000,
+              "versionname": "5.3.0",
+              "siteurl": "https://learn.zaytunweb.online/",
+              "version": "4.3.0",
+              "disabledfeatures": [
+                  "chat"
+              ],
+              "push_providers": [
+                  "fcm"
+              ],
+              "fcm_sender_id": "766562172755",
+              "airnotifier_url": "",
+              "airnotifier_appid": "",
+              "ios_bundle_id": "com.iim.lms",
+              "android_package_name": "com.iim.lms",
+              "branding_options": {
+                  "logo_text": "REGENT",
+                  "logo_preset": 1,
+                  "primary_color": "#800020",
+                  "accent_color": "#d4af37",
+                  "header_bg": "#5c061a"
+              },
+              "cache_update_frequency_usually": 420000,
+              "cache_update_frequency_often": 1200000,
+              "cache_update_frequency_sometimes": 3600000,
+              "cache_update_frequency_rarely": 43200000,
+              "default_lang": "en",
+              "languages": {
+                  "af": "Afrikaans",
+                  "ar": "العربية",
+                  "az": "Azərbaycanca",
+                  "bg": "Български",
+                  "ca": "Català",
+                  "cs": "Čeština",
+                  "da": "Dansk",
+                  "de": "Deutsch",
+                  "de-du": "Deutsch (du)",
+                  "el": "Ελληνικά",
+                  "en": "English",
+                  "en-us": "English (United States)",
+                  "es": "Español - Internacional",
+                  "es-mx": "Español - México",
+                  "eu": "Euskara",
+                  "fa": "فارسی",
+                  "fi": "Suomi",
+                  "fr": "Français",
+                  "gl": "Galego",
+                  "he": "עברית",
+                  "hi": "हिंदी",
+                  "hr": "Hrvatski",
+                  "hsb": "Hornjoserbsce",
+                  "hu": "magyar",
+                  "hy": "Հայերեն",
+                  "id": "Bahasa Indonesia",
+                  "it": "Italiano",
+                  "ja": "日本語",
+                  "km": "ខ្មែរ",
+                  "kn": "ಕನ್ನಡ",
+                  "ko": "한국어",
+                  "lo": "лау",
+                  "lt": "Lietuvių",
+                  "lv": "Latviešu",
+                  "mn": "Монгол",
+                  "mr": "Мраठी",
+                  "nl": "Nederlands",
+                  "no": "Norsk",
+                  "pl": "Polski",
+                  "ps": "ليسي",
+                  "pt": "Português - Portugal",
+                  "pt-br": "Português - Brasil",
+                  "ro": "Română",
+                  "ru": "Русский",
+                  "sl": "Slovenščina",
+                  "sq": "Shqip",
+                  "sr-cr": "Српски",
+                  "sr-lt": "Srpski",
+                  "sv": "Svenska",
+                  "szl": "Ślōnski",
+                  "tg": "Тоҷикӣ",
+                  "tr": "Türkçe",
+                  "uk": "Українська",
+                  "uz": "O'zbekcha",
+                  "vi": "Vietnamese",
+                  "zh-cn": "简体中文",
+                  "zh-tw": "正體中文"
+              },
+              "wsservice": "moodle_mobile_app",
+              "demo_sites": {
+                  "student": {
+                      "url": "https://school.moodledemo.net",
+                      "username": "student",
+                      "password": "moodle26"
+                  },
+                  "teacher": {
+                      "url": "https://school.moodledemo.net",
+                      "username": "teacher",
+                      "password": "moodle26"
+                  }
+              },
+              "defaultZoomLevel": "none",
+              "zoomlevels": {
+                  "none": 100,
+                  "medium": 110,
+                  "high": 120
+              },
+              "customurlscheme": "iimlms",
+              "sites": [],
+              "multisitesdisplay": "",
+              "sitefindersettings": {},
+              "onlyallowlistedsites": false,
+              "forcedefaultlanguage": false,
+              "privacypolicy": "https://moodle.net/moodle-app-privacy/",
+              "notificoncolor": "#800020",
+              "enableanalytics": false,
+              "forceColorScheme": "",
+              "forceLoginLogo": false,
+              "showTopLogo": "hidden",
+              "ioswebviewscheme": "moodleappfs",
+              "appstores": {
+                  "android": "com.iim.lms",
+                  "ios": "com.iim.lms"
+              },
+              "wsrequestqueuelimit": 10,
+              "wsrequestqueuedelay": 100,
+              "calendarreminderdefaultvalue": 3600,
+              "toastDurations": {
+                  "short": 2000,
+                  "long": 3500,
+                  "sticky": 0
+              },
+              "disableTokenFile": false,
+              "iconsPrefixes": {
+                  "font-awesome": {
+                      "brands": [
+                          "fab"
+                      ],
+                      "regular": [
+                          "far"
+                      ],
+                      "solid": [
+                          "fa",
+                          "fas"
+                      ]
+                  },
+                  "moodle": {
+                      "font-awesome": [
+                          "fam"
+                      ],
+                      "moodle": [
+                          "moodle"
+                      ]
+                  }
+              },
+              "clearIABSessionWhenAutoLogin": "android",
+              "collapsibleItemsExpanded": false
           }
           EOF
-          
-          mkdir -p moodleapp-source/src/assets
-          cp moodleapp-source/config.json moodleapp-source/src/assets/config.json
 
-          # 3. Inject variables.scss custom style overrides
+          # 3. Create and target variables.scss cleanly inside /moodleapp/src/theme/
           mkdir -p moodleapp-source/src/theme
           cat << 'EOF' > moodleapp-source/src/theme/variables.scss
           :root {
@@ -142,26 +270,33 @@ jobs:
           }
           EOF
 
-          # Hard Injection into theme base maps so Webpack forces styling compilation
+          # 4. Inject explicit @import statement cleanly into the top of /src/theme/global.scss
+          if [ -f "moodleapp-source/src/theme/global.scss" ]; then
+            echo "Injecting @import rule tracking to the top of global.scss..."
+            sed -i '1i @import "./variables";' moodleapp-source/src/theme/global.scss
+          else
+            echo "@import './variables';" > moodleapp-source/src/theme/global.scss
+          fi
+
+          # Also cascade variables into base stylesheet as a fallback rule tracking layer
           cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
-          # 4. Aligned config.xml to com.iim.lms requirements
+          # 5. Aligned config.xml to com.iim.lms requirements
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.lms"/g' moodleapp-source/config.xml
-            sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
+            sed -i 's/<name>Moodle Mobile<\/name>/<name>Al-Furqan<\/name>/g' moodleapp-source/config.xml
             
-            # Forces the native engine to output a classic APK instead of a bundle layout structure
             sed -i '/<platform name="android">/a \        <preference name="android-minSdkVersion" value="24" \/>' moodleapp-source/config.xml
             sed -i '/<platform name="android">/a \        <preference name="android-build-type" value="apk" \/>' moodleapp-source/config.xml
           fi
 
-          # 5. Copy custom Firebase profile into root before compilation loops ignite
+          # 6. Bring in your google-services profile
           if [ -f "google-services.json" ]; then
             cp google-services.json moodleapp-source/google-services.json
           fi
 
-          # 6. Trigger Moodle's baseline build task orchestration chain explicitly
+          # 7. Fire up Gulp to process moodle.config.json natively
           cd moodleapp-source
           npx gulp
 
@@ -169,15 +304,8 @@ jobs:
         working-directory: moodleapp-source
         run: npm run build
 
-      - name: Inject Custom Staging Files & Graphics
+      - name: Inject Custom Staging Graphics
         run: |
-          mkdir -p moodleapp-source/www/assets
-          cp moodleapp-source/config.json moodleapp-source/www/assets/config.json || true
-          
-          if [ -f "google-services.json" ]; then
-            cp google-services.json moodleapp-source/google-services.json
-          fi
-
           if [ -f "icon.png" ]; then
             mkdir -p moodleapp-source/resources/android
             cp icon.png moodleapp-source/resources/android/icon.png
@@ -199,11 +327,9 @@ jobs:
           npx ionic cordova platform remove android --no-interactive || true
           npx ionic cordova platform add android --no-interactive --confirm
           
-          # Force set explicit properties inside the native Gradle tracker rules
           echo "cdvAndroidBundle=false" >> platforms/android/gradle.properties
           echo "cdvBuildMultipleApks=false" >> platforms/android/gradle.properties
 
-          # Compile raw unsigned production assets cleanly without signature errors
           npx ionic cordova build android --release --device --no-interactive
 
       - name: Sign Production Release Android Binary
@@ -225,7 +351,7 @@ jobs:
       - name: Upload Signed Application Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: "${{ github.event.inputs.app_name || 'Zaytun' }}-Signed-Build"
+          name: "${{ github.event.inputs.app_name || 'Al-Furqan' }}-Signed-Build"
           path: ${{ steps.sign_app.outputs.signedReleaseFile }}
 
       - name: Set up Python Environment
