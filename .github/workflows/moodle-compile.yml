@@ -48,7 +48,7 @@ jobs:
       - name: Set up Compatible Gradle Version
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
+          gradle-version: '7.6' # Forced to 7.6 to ensure cross-compatibility with Cordova Android configurations and Java 17
 
       - name: Install Exact Android Build Tools Required by Cordova
         run: |
@@ -241,7 +241,7 @@ jobs:
           }
           EOF
 
-          # 3. Create and target variables.scss cleanly inside /moodleapp/src/theme/
+          # 3. Create variables.scss inside /moodleapp/src/theme/
           mkdir -p moodleapp-source/src/theme
           cat << 'EOF' > moodleapp-source/src/theme/variables.scss
           :root {
@@ -270,7 +270,7 @@ jobs:
           }
           EOF
 
-          # 4. Inject explicit @import statement cleanly into the top of /src/theme/global.scss
+          # 4. Inject explicit @import rule to the absolute top of /src/theme/global.scss
           if [ -f "moodleapp-source/src/theme/global.scss" ]; then
             echo "Injecting @import rule tracking to the top of global.scss..."
             sed -i '1i @import "./variables";' moodleapp-source/src/theme/global.scss
@@ -278,10 +278,10 @@ jobs:
             echo "@import './variables';" > moodleapp-source/src/theme/global.scss
           fi
 
-          # Also cascade variables into base stylesheet as a fallback rule tracking layer
+          # Cascade fallback styling
           cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
-          # 5. Aligned config.xml to com.iim.lms requirements
+          # 5. Aligned config.xml properties
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.lms"/g' moodleapp-source/config.xml
@@ -291,7 +291,7 @@ jobs:
             sed -i '/<platform name="android">/a \        <preference name="android-build-type" value="apk" \/>' moodleapp-source/config.xml
           fi
 
-          # 6. Bring in your google-services profile
+          # 6. Seed official google-services token context profile mappings
           if [ -f "google-services.json" ]; then
             cp google-services.json moodleapp-source/google-services.json
           fi
@@ -327,6 +327,12 @@ jobs:
           npx ionic cordova platform remove android --no-interactive || true
           npx ionic cordova platform add android --no-interactive --confirm
           
+          # FORCED GRADLE VERSION SYNC: Ensures the generated Android subproject wrapper 
+          # uses Gradle 7.6 properties so it correctly understands Java 17 bytecode.
+          if [ -f "platforms/android/gradle/wrapper/gradle-wrapper.properties" ]; then
+            sed -i 's/gradle-.*-all.zip/gradle-7.6-all.zip/g' platforms/android/gradle/wrapper/gradle-wrapper.properties
+          fi
+
           echo "cdvAndroidBundle=false" >> platforms/android/gradle.properties
           echo "cdvBuildMultipleApks=false" >> platforms/android/gradle.properties
 
