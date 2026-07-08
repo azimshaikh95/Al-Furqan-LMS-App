@@ -54,11 +54,6 @@ jobs:
         run: |
           echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;32.0.0"
 
-      - name: Decode Android Keystore File
-        run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/release.keystore
-          echo "Keystore decoded successfully."
-
       - name: Disable engine strict configuration
         run: |
           if [ -f "moodleapp-source/.npmrc" ]; then
@@ -83,7 +78,7 @@ jobs:
             sed -i 's/"maximumError": "5mb"/"maximumError": "12mb"/g' moodleapp-source/angular.json
           fi
 
-          # 2. Inject config.json safely aligned to Firebase Package identity[cite: 1]
+          # 2. Inject config.json safely aligned to Firebase Package identity
           cat << 'EOF' > moodleapp-source/config.json
           {
             "siteurl": "https://learn.zaytunweb.online/",
@@ -150,17 +145,18 @@ jobs:
           # Hard Injection into theme base maps so Webpack forces styling compilation
           cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
 
-          # 4. Aligned config.xml to com.iim.lms requirements[cite: 1]
+          # 4. Aligned config.xml to com.iim.lms requirements
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.lms"/g' moodleapp-source/config.xml
             sed -i 's/<name>Moodle Mobile<\/name>/<name>Zaytun<\/name>/g' moodleapp-source/config.xml
             
-            # Inject broad fallback SDK target properties explicitly
+            # Forces the native engine to output a classic APK instead of a bundle layout structure
             sed -i '/<platform name="android">/a \        <preference name="android-minSdkVersion" value="24" \/>' moodleapp-source/config.xml
+            sed -i '/<platform name="android">/a \        <preference name="android-build-type" value="apk" \/>' moodleapp-source/config.xml
           fi
 
-          # 5. Copy custom Firebase profile into root before compilation loops ignite[cite: 1]
+          # 5. Copy custom Firebase profile into root before compilation loops ignite
           if [ -f "google-services.json" ]; then
             cp google-services.json moodleapp-source/google-services.json
           fi
@@ -193,23 +189,7 @@ jobs:
             cp splash.png moodleapp-source/splash.png
           fi
 
-          # DUAL HARMONIZED SIGNING CONFIG: Contains unified configuration properties 
-          # that completely support signing for both modern App Bundles (.aab) and standard APK files.
-          cat << 'EOF' > moodleapp-source/build.json
-          {
-            "android": {
-              "release": {
-                "keystore": "../release.keystore",
-                "storePassword": "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}",
-                "alias": "${{ secrets.ANDROID_KEY_ALIAS }}",
-                "password": "${{ secrets.ANDROID_KEY_PASSWORD }}",
-                "keystoreType": ""
-              }
-            }
-          }
-          EOF
-
-      - name: Assemble Final Native Signed Application Build
+      - name: Assemble Unsigned Production Base Build
         working-directory: moodleapp-source
         env:
           NPM_CONFIG_LEGACY_PEER_DEPS: "true"
@@ -219,26 +199,34 @@ jobs:
           npx ionic cordova platform remove android --no-interactive || true
           npx ionic cordova platform add android --no-interactive --confirm
           
-          # HARD GRADLE INJECTION: Force overrides directly inside local Gradle attributes
-          # to make absolutely sure the signature structures sync cleanly across tasks.
-          echo "cdvAndroidBundle=true" >> platforms/android/gradle.properties
-          echo "cdvReleaseSigningPropertiesFile=../../build.json" >> platforms/android/gradle.properties
+          # Force set explicit properties inside the native Gradle tracker rules
+          echo "cdvAndroidBundle=false" >> platforms/android/gradle.properties
+          echo "cdvBuildMultipleApks=false" >> platforms/android/gradle.properties
 
-          # Compile unified release build headlessly
-          npx ionic cordova build android --release --device --buildConfig=build.json --no-interactive
+          # Compile raw unsigned production assets cleanly without signature errors
+          npx ionic cordova build android --release --device --no-interactive
 
-      - name: Debug File System Output Mapping
+      - name: Sign Production Release Android Binary
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: moodleapp-source/platforms/android/app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+          singleOp: true
+          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Debug Output Artifact Tree Paths
         run: |
-          echo "Scanning workspace for output structures..."
-          find . -name "*.apk" -o -name "*.aab" || true
+          echo "Finding compiled finalized distributions..."
+          find moodleapp-source/platforms/android/ -name "*.apk" || true
 
       - name: Upload Signed Application Artifact
         uses: actions/upload-artifact@v4
         with:
           name: "${{ github.event.inputs.app_name || 'Zaytun' }}-Signed-Build"
-          path: |
-            moodleapp-source/platforms/android/**/*.apk
-            moodleapp-source/platforms/android/**/*.aab
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
 
       - name: Set up Python Environment
         uses: actions/setup-python@v5
@@ -252,11 +240,11 @@ jobs:
         env:
           GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
           DRIVE_FILE_ID: "1vcG3GDzzbRx7xdSjTnfh6omb5RFDq4sC"
+          SIGNED_APK_PATH: ${{ steps.sign_app.outputs.signedReleaseFile }}
         run: |
           python - << 'EOF'
           import os
           import json
-          import glob
           import sys
           from google.oauth2.service_account import Credentials
           from googleapiclient.discovery import build
@@ -275,25 +263,14 @@ jobs:
           credentials = Credentials.from_service_account_info(creds_data)
           drive_service = build('drive', 'v3', credentials=credentials)
           file_id = os.environ['DRIVE_FILE_ID']
-          
-          # Universal recursive fallback file lookup sequence
-          search_extensions = ['**/*.apk', '**/*.aab']
-          
-          found_files = []
-          for ext in search_extensions:
-              pattern = os.path.join('moodleapp-source/platforms/android', ext)
-              found_files.extend([f for f in glob.glob(pattern, recursive=True) if "unsigned" not in f])
+          apk_path = os.environ.get('SIGNED_APK_PATH', '')
 
-          if not found_files:
-              print("Error: Could not find any signed generated production binary inside the platforms directory workspace structure!")
+          if not apk_path or not os.path.exists(apk_path):
+              print(f"Error: Target path validation failed for: {apk_path}")
               sys.exit(1)
 
-          # Target the newest generated binary file
-          found_files.sort(key=os.path.getmtime, reverse=True)
-          target_path = found_files[0]
-          print(f"Found production artifact target for injection: {target_path}")
-          
-          media = MediaFileUpload(target_path, mimetype='application/octet-stream', resumable=True)
+          print(f"Uploading finalized verified artifact: {apk_path}")
+          media = MediaFileUpload(apk_path, mimetype='application/vnd.android.package-archive', resumable=True)
           updated_file = drive_service.files().update(fileId=file_id, media_body=media).execute()
           print("Success! Google Drive file updated cleanly.")
           EOF
