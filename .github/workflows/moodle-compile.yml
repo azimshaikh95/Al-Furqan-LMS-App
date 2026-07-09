@@ -48,7 +48,7 @@ jobs:
       - name: Set up Compatible Gradle Version
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '7.6' # Forced to 7.6 to ensure cross-compatibility with Cordova Android configurations and Java 17
+          gradle-version: '7.6'
 
       - name: Install Exact Android Build Tools Required by Cordova
         run: |
@@ -78,33 +78,13 @@ jobs:
             sed -i 's/"maximumError": "5mb"/"maximumError": "12mb"/g' moodleapp-source/angular.json
           fi
 
-          # 2. Inject your exact moodle.config.json directly into the root folder
-          cat << 'EOF' > moodleapp-source/moodle.config.json
+          # 2. Inject your exact verified moodle.json directly into the root folder
+          cat << 'EOF' > moodleapp-source/moodle.json
           {
               "app_id": "com.iim.lms",
               "appname": "Al-Furqan",
               "versioncode": 53000,
               "versionname": "5.3.0",
-              "siteurl": "https://learn.zaytunweb.online/",
-              "version": "4.3.0",
-              "disabledfeatures": [
-                  "chat"
-              ],
-              "push_providers": [
-                  "fcm"
-              ],
-              "fcm_sender_id": "766562172755",
-              "airnotifier_url": "",
-              "airnotifier_appid": "",
-              "ios_bundle_id": "com.iim.lms",
-              "android_package_name": "com.iim.lms",
-              "branding_options": {
-                  "logo_text": "REGENT",
-                  "logo_preset": 1,
-                  "primary_color": "#800020",
-                  "accent_color": "#d4af37",
-                  "header_bg": "#5c061a"
-              },
               "cache_update_frequency_usually": 420000,
               "cache_update_frequency_often": 1200000,
               "cache_update_frequency_sometimes": 3600000,
@@ -126,7 +106,7 @@ jobs:
                   "es": "Español - Internacional",
                   "es-mx": "Español - México",
                   "eu": "Euskara",
-                  "fa": "فارسی",
+                  "fa": "فارسۍ",
                   "fi": "Suomi",
                   "fr": "Français",
                   "gl": "Galego",
@@ -142,11 +122,11 @@ jobs:
                   "km": "ខ្មែរ",
                   "kn": "ಕನ್ನಡ",
                   "ko": "한국어",
-                  "lo": "лау",
+                  "lo": "ລາວ",
                   "lt": "Lietuvių",
                   "lv": "Latviešu",
                   "mn": "Монгол",
-                  "mr": "Мраठी",
+                  "mr": "मराठी",
                   "nl": "Nederlands",
                   "no": "Norsk",
                   "pl": "Polski",
@@ -170,18 +150,6 @@ jobs:
                   "zh-tw": "正體中文"
               },
               "wsservice": "moodle_mobile_app",
-              "demo_sites": {
-                  "student": {
-                      "url": "https://school.moodledemo.net",
-                      "username": "student",
-                      "password": "moodle26"
-                  },
-                  "teacher": {
-                      "url": "https://school.moodledemo.net",
-                      "username": "teacher",
-                      "password": "moodle26"
-                  }
-              },
               "defaultZoomLevel": "none",
               "zoomlevels": {
                   "none": 100,
@@ -189,10 +157,12 @@ jobs:
                   "high": 120
               },
               "customurlscheme": "iimlms",
-              "sites": [],
+              "sites": [
+                  {"name": "Al-Furqan","url": "https://learn.zaytunweb.online/"}
+              ],
               "multisitesdisplay": "",
               "sitefindersettings": {},
-              "onlyallowlistedsites": false,
+              "onlyallowlistedsites": true,
               "forcedefaultlanguage": false,
               "privacypolicy": "https://moodle.net/moodle-app-privacy/",
               "notificoncolor": "#800020",
@@ -241,9 +211,9 @@ jobs:
           }
           EOF
 
-          # 3. Create variables.scss inside /moodleapp/src/theme/
+          # 3. DIRECT SCSS INJECTION: Populating Moodle's native blank hooks file directly
           mkdir -p moodleapp-source/src/theme
-          cat << 'EOF' > moodleapp-source/src/theme/variables.scss
+          cat << 'EOF' > moodleapp-source/src/theme/globals.custom.scss
           :root {
             --ion-color-primary: #800020 !important;
             --ion-color-primary-rgb: 128,0,32 !important;
@@ -270,18 +240,7 @@ jobs:
           }
           EOF
 
-          # 4. Inject explicit @import rule to the absolute top of /src/theme/global.scss
-          if [ -f "moodleapp-source/src/theme/global.scss" ]; then
-            echo "Injecting @import rule tracking to the top of global.scss..."
-            sed -i '1i @import "./variables";' moodleapp-source/src/theme/global.scss
-          else
-            echo "@import './variables';" > moodleapp-source/src/theme/global.scss
-          fi
-
-          # Cascade fallback styling
-          cat moodleapp-source/src/theme/variables.scss >> moodleapp-source/src/theme/theme.base.scss
-
-          # 5. Aligned config.xml properties
+          # 4. Aligned config.xml properties to package configurations
           if [ -f "moodleapp-source/config.xml" ]; then
             echo "Updating master config.xml parameters..."
             sed -i 's/id="com.moodle.moodlemobile"/id="com.iim.lms"/g' moodleapp-source/config.xml
@@ -291,12 +250,12 @@ jobs:
             sed -i '/<platform name="android">/a \        <preference name="android-build-type" value="apk" \/>' moodleapp-source/config.xml
           fi
 
-          # 6. Seed official google-services token context profile mappings
+          # 5. Seed official google-services token profiles
           if [ -f "google-services.json" ]; then
             cp google-services.json moodleapp-source/google-services.json
           fi
 
-          # 7. Fire up Gulp to process moodle.config.json natively
+          # 6. Fire up Gulp to process moodle.json natively
           cd moodleapp-source
           npx gulp
 
@@ -327,8 +286,7 @@ jobs:
           npx ionic cordova platform remove android --no-interactive || true
           npx ionic cordova platform add android --no-interactive --confirm
           
-          # FORCED GRADLE VERSION SYNC: Ensures the generated Android subproject wrapper 
-          # uses Gradle 7.6 properties so it correctly understands Java 17 bytecode.
+          # Force the generated Android project wrapper to use Gradle 7.6 properties layout natively
           if [ -f "platforms/android/gradle/wrapper/gradle-wrapper.properties" ]; then
             sed -i 's/gradle-.*-all.zip/gradle-7.6-all.zip/g' platforms/android/gradle/wrapper/gradle-wrapper.properties
           fi
